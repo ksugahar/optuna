@@ -33,7 +33,7 @@ native = ["nvidia-cuda-runtime-cu12==12.8.57; sys_platform == 'win32'"]
 # use does not import Python at run time. Target-specific Optuna integration
 # dependencies remain optional exactly as they are upstream.
 upstream = [
-    "optuna==5.0.0",
+    "optuna==5.1.0",
     "scipy>=1.11",
     "torch>=2.0",
     "scikit-learn>=1.3",

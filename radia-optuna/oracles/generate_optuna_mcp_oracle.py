@@ -1,6 +1,6 @@
 """Generate MATLAB parity fixtures through the official Optuna MCP server.
 
-The seeded sampler oracle lives in ``generate_optuna50_oracle.py`` because
+The seeded sampler oracle lives in ``generate_optuna_oracle.py`` because
 optuna-mcp 0.2.0 does not expose a sampler seed.  This fixture exercises the
 public MCP Study/Trial surface over a real stdio session instead of importing
 the server implementation in-process.
@@ -20,7 +20,7 @@ import anyio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-EXPECTED_OPTUNA_VERSION = "5.0.0"
+EXPECTED_OPTUNA_VERSION = "5.1.0"
 EXPECTED_OPTUNA_MCP_VERSION = "0.2.0"
 
 
@@ -267,7 +267,7 @@ def build_oracle() -> dict[str, object]:
 
 
 def main() -> None:
-    destination = Path(__file__).with_name("optuna50_mcp_oracle.json")
+    destination = Path(__file__).with_name("optuna_mcp_oracle.json")
     destination.write_text(
         json.dumps(build_oracle(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

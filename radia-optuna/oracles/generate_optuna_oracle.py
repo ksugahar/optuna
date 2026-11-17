@@ -1,4 +1,4 @@
-"""Generate deterministic MATLAB parity fixtures from upstream Optuna 5.0.0."""
+"""Generate deterministic MATLAB parity fixtures from upstream Optuna 5.1.0."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import optuna.terminator
 import scipy
 from optuna.trial import TrialState
 
-EXPECTED_VERSION = "5.0.0"
+EXPECTED_VERSION = "5.1.0"
 
 CONSTRUCTOR_MODULE_NAMES = [
     "optuna",
@@ -770,7 +770,7 @@ def _sampler_seed_default_contract() -> dict[str, object]:
     for name in constructors:
         parameter = inspect.signature(getattr(optuna.samplers, name)).parameters["seed"]
         if parameter.default is not None:
-            raise RuntimeError(f"Optuna 5.0.0 {name}.seed no longer defaults to None.")
+            raise RuntimeError(f"Optuna 5.1.0 {name}.seed no longer defaults to None.")
         defaults[name] = {
             "parameter": parameter.name,
             "default_is_none": True,
@@ -3653,7 +3653,7 @@ def build_oracle() -> dict[str, object]:
 
 
 def main() -> None:
-    destination = Path(__file__).with_name("optuna50_oracle.json")
+    destination = Path(__file__).with_name("optuna_oracle.json")
     destination.write_text(
         json.dumps(build_oracle(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

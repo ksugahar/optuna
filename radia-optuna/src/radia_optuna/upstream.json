@@ -1,5 +1,5 @@
 {
-  "optuna": "5.0.0",
+  "optuna": "5.1.0",
   "optuna_mcp": "0.2.0",
   "generation": {
     "upstream_oracle": {

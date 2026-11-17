@@ -49,7 +49,7 @@ def model_cases():
 
 
 def generate():
-    if optuna.__version__ != "5.0.0":
+    if optuna.__version__ != "5.1.0":
         raise RuntimeError("This fixture requires Optuna 5.0.0")
     below_weights = np.array([0.2, 0.3, 0.5])
     above_weights = np.array([0.4, 0.6])
