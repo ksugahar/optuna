@@ -116,7 +116,7 @@ function testOracleProvenance(testCase)
 oracle=testCase.TestData.Oracle;
 verifyEqualWithPrecision(testCase,string(oracle.schema), ...
     "radia.test.optuna-upstream-oracle.v1");
-verifyEqualWithPrecision(testCase,string(oracle.optuna_version),"5.0.0");
+verifyEqualWithPrecision(testCase,string(oracle.optuna_version),radia.optuna.version());
 verifyEqualWithPrecision(testCase,radia.optuna.version(),string(oracle.optuna_version));
 verifyNotEmpty(testCase,string(oracle.numpy_version));
 verifyNotEmpty(testCase,string(oracle.scipy_version));
@@ -132,7 +132,7 @@ manifest=jsondecode(fileread(fullfile( ...
     fixtureDirectory,"optuna_test_manifest.json")));
 verifyEqualWithPrecision(testCase,string(manifest.schema), ...
     "radia.test.optuna-matlab-policy.v1");
-verifyEqualWithPrecision(testCase,string(manifest.upstream_version),"5.0.0");
+verifyEqualWithPrecision(testCase,string(manifest.upstream_version),radia.optuna.version());
 
 files=dir(fullfile(root,"tests","matlab","test_optuna*.m"));
 actual=strings(0,1);
@@ -186,7 +186,7 @@ coverage=jsondecode(fileread(fullfile( ...
     root,"matlab","optuna50_api_coverage.json")));
 verifyEqualWithPrecision(testCase,string(coverage.schema), ...
     "radia.optuna50-api-coverage.v1");
-verifyEqualWithPrecision(testCase,string(coverage.upstream_version),"5.0.0");
+verifyEqualWithPrecision(testCase,string(coverage.upstream_version),radia.optuna.version());
 verifyEqualWithPrecision(testCase,double(coverage.surface_missing_count),0);
 verifyEqualWithPrecision(testCase,double(coverage.oracle_partial_count),0);
 verifyEqualWithPrecision(testCase,double(coverage.oracle_unmapped_count),0);

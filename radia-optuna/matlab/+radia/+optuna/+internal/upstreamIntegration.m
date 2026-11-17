@@ -17,9 +17,9 @@ end
 try
     optunaModule=py.importlib.import_module("optuna");
     version=string(py.builtins.getattr(optunaModule,"__version__"));
-    if version~="5.0.0"
+    if version~=radia.optuna.version()
         error("radia:optuna:IntegrationVersion", ...
-            "Optuna integrations require optuna==5.0.0, found %s.",version);
+            "Optuna integrations require optuna==%s, found %s.",radia.optuna.version(),version);
     end
     module=py.importlib.import_module("optuna.integration");
     symbol=py.builtins.getattr(module,char(symbolName));

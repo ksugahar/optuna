@@ -11,7 +11,7 @@ selection. The MEX adapter must not include or link NGSolve TaskManager.
 Implicit GPU-to-CPU fallback is prohibited. Verify CPU execution creates no
 CUDA context and verify same-kernel Python/MEX parity before qualification.
 
-Preserve Optuna 5.0.0 equations, ordered RNG consumption, first-maximum ties
+Preserve pinned upstream Optuna equations, ordered RNG consumption, first-maximum ties
 and failure-state restoration on both routes. Validate both modes. Treat
 execution selection as process-local configuration, separate from Study
 storage; parallel workers require their own explicit selection.

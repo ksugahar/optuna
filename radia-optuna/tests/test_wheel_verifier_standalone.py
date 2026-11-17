@@ -53,7 +53,7 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
         archive.writestr(f"{dist_info}/METADATA", (
             "Metadata-Version: 2.1\nName: radia-optuna\n"
             f"Version: {manifest['version']}\n"
-            'Requires-Dist: optuna==5.0.0; extra == "upstream"\n\n'))
+            f'Requires-Dist: optuna=={verifier.UPSTREAM_VERSION}; extra == "upstream"\n\n'))
         archive.writestr(f"{dist_info}/WHEEL", f"Tag: {tag}-{tag}-win_amd64\n")
         archive.writestr(f"radia_optuna/{extension}", pe)
     result = verifier.verify(wheel)
@@ -66,14 +66,18 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
         original = {name: archive.read(name) for name in archive.namelist()}
     target = "radia_optuna/" + evidence["files"]["python_oracle"]["path"]
     # Exercise the public verifier with damaged distributions, not mocked hashes.
-    for damage in ("missing", "tampered", "producer"):
+    for damage in ("missing", "tampered", "producer", "missing-pin", "tampered-pin"):
         members = dict(original)
         if damage == "missing":
             del members[target]
         elif damage == "tampered":
             members[target] += b" "
-        else:
+        elif damage == "producer":
             members["radia_optuna/oracles/generate_optuna50_oracle.py"] = b"raise RuntimeError('must not ship')\n"
+        elif damage == "missing-pin":
+            del members["radia_optuna/upstream.json"]
+        else:
+            members["radia_optuna/upstream.json"] = b'{"optuna": "0.0.0"}\n'
         with zipfile.ZipFile(wheel, "w") as archive:
             for name, payload in members.items():
                 archive.writestr(name, payload)
@@ -105,8 +109,9 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
 
     metadata = detached / "pyproject.toml"
     text = metadata.read_text(encoding="utf-8")
-    assert '"optuna==5.0.0"' in text
-    metadata.write_text(text.replace('"optuna==5.0.0"', '"optuna==4.9.0"'),
+    requirement = f'"optuna=={verifier.UPSTREAM_VERSION}"'
+    assert requirement in text
+    metadata.write_text(text.replace(requirement, '"optuna==0.0.0"'),
                         encoding="utf-8")
     with pytest.raises(SystemExit) as failure:
         verifier.verify(wheel)

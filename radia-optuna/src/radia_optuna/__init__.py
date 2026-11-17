@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from importlib.resources import files
 from pathlib import Path
 
 __version__ = "0.5.0"
-ORACLE_VERSION = "5.0.0"
+ORACLE_VERSION = json.loads(files(__package__).joinpath("upstream.json").read_text(encoding="utf-8"))["optuna"]
 
 
 def _staged_matlab_path() -> Path:

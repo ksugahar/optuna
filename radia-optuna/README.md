@@ -7,7 +7,7 @@ requires exact-source acceptance of the final 0.5.0 artifacts and installed
 wheel. These source checks do not establish A100 qualification; see
 [NATIVE_BUILD.md](NATIVE_BUILD.md) for the tested scope.
 Compatibility criterion `OPTUNA-COMPATIBILITY-20261031-01` (user approved
-2026-10-31) uses independent Optuna 5.0.0: absolute density error at most
+2026-10-31) uses the pinned upstream Optuna release: absolute density error at most
 1e-10, absolute candidate-value error at most 5e-11, and exact RNG consumption
 and tie selection. Fixture bytes and generation provenance remain unchanged.
 Criterion approval does not certify an artifact: final-source wheel validation,
@@ -243,7 +243,7 @@ Rustuna, BoTorch or universal GPU speedup is claimed.
 
 The [focused construction/lifecycle record](https://github.com/ksugahar/Radia/blob/5b42e86cda9e7442220fa696668606814f8ea2c0/validation_test/radia_optuna/results/gpu-model-construction-20261013.json)
 records 37 passing checks on both RTX 5000 and A100, plus the A100 oracle-manifest
-check. Fourteen Optuna 5.0.0-generated model fixtures run on CPU/GPU twice,
+check. Fourteen upstream-generated Optuna model fixtures run on CPU/GPU twice,
 including exact following random values. Large signed-zero sorting also has
 an explicit backend differential check. Failed-model cache invalidation,
 GPU reset, unrelated gpuArray liveness, CPU memory release and module reload
@@ -261,14 +261,14 @@ study block and `SimulinkRunner`. Simulink is optional for MATLAB-only use.
 Use the Python-first package build described in [NATIVE_BUILD.md](NATIVE_BUILD.md).
 MATLAB selects its supported CUDA toolkit and Visual Studio compiler.
 The focused acceptance saves `validation_test/optimization/results_optuna_cuda_100.json`,
-including upstream 5.0.0 density/selection checks, exact random consumption,
+including upstream density/selection checks, exact random consumption,
 CUDA launch counters, runtime versions, transfers and temporary device memory.
 This is correctness evidence; formal speed comparisons use an idle validation host.
 
 `radia-optuna` is an independent, separately distributed MATLAB optimization
 component from the standalone radia-optuna repository. It installs the `radia.optuna` MATLAB
 namespace, the 22-command `optuna_mex`, and checked compatibility contracts
-whose behavioral oracle is Optuna 5.0.0. Its checked public inventory contains
+whose behavioral oracle is the pinned Optuna release. Its checked public inventory contains
 812 present entries: 108 are oracle-verified in the checked coverage ledger
 and 704 remain assertion-mapped. All 401 required entries are present;
 79 have recorded oracle mappings and 322 still require that evidence.
@@ -276,7 +276,7 @@ Full API compatibility verification is therefore incomplete. Focused TPE
 oracle tests certify their exercised cases, rather than the entire API. It
 does not install or load the Radia solver, NGSolve, oneMKL, or Cubit.
 
-Optuna 5.0.0 is also the algorithmic source of truth: native MATLAB and MEX
+The pinned Optuna release is also the algorithmic source of truth: native MATLAB and MEX
 paths preserve its equations, transforms, state updates, boundary handling,
 defaults, extension points, and seeded random-consumption order. The active
 implementation uses the 5.0 design directly; removed 4.x APIs and state shims
@@ -489,7 +489,7 @@ and continuation to six trials, the twelve-trial teaching model, stable model
 topology, and restoration of all seven persisted tables. The native route is
 mexcuda with OpenMP host control and no TaskManager or implicit CPU fallback.
 The RTX 5000 uses the stream-ordered allocator; A100 uses `cudaMalloc`.
-The compatibility oracle remains Optuna 5.0.0; the earlier numerical oracle
+The compatibility oracle remains the pinned Optuna release; the earlier numerical oracle
 checks and the installed-wheel smoke checks serve different purposes.
 
 See the [published-wheel acceptance record](https://github.com/ksugahar/Radia/blob/5b42e86cda9e7442220fa696668606814f8ea2c0/validation_test/radia_optuna/results/published-wheel-0.3.0-20261013.json).
@@ -572,8 +572,8 @@ Large density batches can amortize these costs, but density-kernel throughput
 alone does not establish end-to-end optimizer acceleration. These results
 compare two GPU implementations and do not establish
 a speedup over Optuna Python or a CPU C++ implementation. Selected candidates
-match across variants; both the RTX 5000 build host and A100 pass the Optuna
-5.0.0 oracle checks. See the [machine-readable results](https://github.com/ksugahar/Radia/blob/5b42e86cda9e7442220fa696668606814f8ea2c0/validation_test/optimization/results_optuna_cuda_performance_a100_20261012.json)
+match across variants; both the RTX 5000 build host and A100 pass the pinned Optuna
+oracle checks. See the [machine-readable results](https://github.com/ksugahar/Radia/blob/5b42e86cda9e7442220fa696668606814f8ea2c0/validation_test/optimization/results_optuna_cuda_performance_a100_20261012.json)
 for raw observations, hashes, uncertainty and limitations. These formal timings
 used development binaries on the user-selected A100, not the published 0.3.0
 wheel, and are not historical_cpu_worker timing results. They must not be relabeled as release-wheel
@@ -631,7 +631,7 @@ also execute on GPU in GPU mode. Mixture-weight ordering, history selection,
 domain checks and sampling RNG remain host operations; no CPU model-building
 fallback is used by a declared native GPU construction call.
 
-The oracle remains Optuna 5.0.0. Numerical parity and transfer-inclusive
+The oracle remains the pinned Optuna release. Numerical parity and transfer-inclusive
 measurements are required before claiming acceleration. Speedup and sampler coverage require separate measurements.
 
 ## TPE estimator contract

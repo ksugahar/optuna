@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 import warnings
 
+from . import ORACLE_VERSION
+
 if TYPE_CHECKING:  # pragma: no cover
     import optuna
 
@@ -24,9 +26,9 @@ def _optuna():
             "The storage bridge needs upstream Optuna. Install "
             "'radia-optuna[upstream]'."
         ) from error
-    if optuna.__version__ != "5.0.0":
+    if optuna.__version__ != ORACLE_VERSION:
         raise RuntimeError(
-            f"The bridge requires optuna==5.0.0, found {optuna.__version__}."
+            f"The bridge requires optuna=={ORACLE_VERSION}, found {optuna.__version__}."
         )
     return optuna
 

@@ -8,6 +8,10 @@ import re
 from pathlib import Path
 
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+UPSTREAM_VERSION = json.loads((PACKAGE_ROOT / "src/radia_optuna/upstream.json").read_text(encoding="utf-8"))["optuna"]
+
+
 CLASSIFICATION_BY_FILE = {
     "test_optuna_cuda.m": "matlab-integration",
     "test_optuna_upstream_oracle.m": "upstream-python",
@@ -88,7 +92,7 @@ def build_manifest(test_directory: Path) -> dict[str, object]:
                 effective_classification = "matlab-integration"
             if effective_classification == "upstream-python":
                 oracle = "optuna50_oracle.json"
-                scope = "shared Optuna 5.0.0 behavior"
+                scope = f"shared Optuna {UPSTREAM_VERSION} behavior"
             elif effective_classification == "upstream-mcp":
                 oracle = "optuna50_mcp_oracle.json"
                 scope = "official Optuna MCP behavior"
@@ -100,11 +104,11 @@ def build_manifest(test_directory: Path) -> dict[str, object]:
             if filename == "test_optuna_cuda.m" and test_name == "testDensityMatchesUpstream":
                 effective_classification = "upstream-python"
                 oracle = "optuna_cuda_density_oracle.json"
-                scope = "Optuna 5.0.0 mixture densities evaluated by CUDA"
+                scope = f"Optuna {UPSTREAM_VERSION} mixture densities evaluated by CUDA"
             if filename == "test_optuna_cuda.m" and test_name == "testGpuModelConstructionMatchesUpstream":
                 effective_classification = "upstream-python"
                 oracle = "optuna50_cuda_oracle.json"
-                scope = "Optuna 5.0.0 observation-built TPE models and ordered RNG"
+                scope = f"Optuna {UPSTREAM_VERSION} observation-built TPE models and ordered RNG"
             entries.append(
                 {
                     "classification": effective_classification,
@@ -117,7 +121,7 @@ def build_manifest(test_directory: Path) -> dict[str, object]:
 
     return {
         "schema": "radia.test.optuna-matlab-policy.v1",
-        "upstream_version": "5.0.0",
+        "upstream_version": UPSTREAM_VERSION,
         "entries": entries,
     }
 

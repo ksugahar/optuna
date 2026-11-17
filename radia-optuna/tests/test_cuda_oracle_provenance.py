@@ -2,7 +2,7 @@
 
 Guards: Changes to the approved producer or stored oracle expectations, drift of
 its upstream pin, and reintroducing monorepo-relative verification inputs.
-Assumes: Stored upstream Optuna 5.0.0 evidence; producer identity uses its
+Assumes: Stored upstream Optuna evidence; producer identity uses its
 existing LF normalization. This checks source identity, not solver accuracy.
 """
 
@@ -66,7 +66,8 @@ def test_cuda_oracle_preserves_approved_source_identity(
     else:
         # The unchanged legacy schema has no embedded producer fingerprint.
         assert "generator_sha256" not in oracle, oracle.keys()
-    assert oracle["optuna_version"] == "5.0.0", oracle["optuna_version"]
+    pin = json.loads((package / "src/radia_optuna/upstream.json").read_text(encoding="utf-8"))
+    assert oracle["optuna_version"] == pin["optuna"], oracle["optuna_version"]
     project = tomllib.loads((package / "pyproject.toml").read_text(encoding="utf-8"))
     upstream = project["project"]["optional-dependencies"]["upstream"]
     assert f"optuna=={oracle['optuna_version']}" in upstream, upstream

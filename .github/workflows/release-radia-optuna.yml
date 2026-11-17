@@ -128,7 +128,7 @@ jobs:
           RELEASE_EXISTS: ${{ steps.audit.outputs.release_exists }}
           ASSET_EXISTS: ${{ steps.audit.outputs.github_asset_exists }}
         run: |
-          printf 'Shared CUDA kernels with Python and plain MEX adapters; Optuna 5.0.0 oracle checks. CPU/GPU selection is explicit; management and sequential RNG remain on the host. See the tagged package documentation for qualification scope.\n\nWheel SHA256: `%s`\n' "$WHEEL_SHA256" > release-notes.txt
+          printf 'Shared CUDA kernels with Python and plain MEX adapters; pinned Optuna oracle checks. CPU/GPU selection is explicit; management and sequential RNG remain on the host. See the tagged package documentation for qualification scope.\n\nWheel SHA256: `%s`\n' "$WHEEL_SHA256" > release-notes.txt
           if [ "$RELEASE_EXISTS" == "false" ]; then
             gh release create "$TAG_NAME" "dist/$WHEEL_NAME" --verify-tag \
               --title "radia-optuna v${VERSION}" --notes-file release-notes.txt

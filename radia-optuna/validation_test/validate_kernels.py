@@ -51,7 +51,7 @@ def main():
     assert binary.parent==package_dir,'Wrong native import origin'
     assert sha(binary)==build['python_extension_sha256s'].get(binary.name),'Native binding hash mismatch'
     oracle=ROOT/'oracles/optuna50_cuda_oracle.json'
-    frozen=sha(oracle);data=json.loads(oracle.read_text());assert data['optuna_version']=='5.0.0'
+    frozen=sha(oracle);data=json.loads(oracle.read_text());assert data['optuna_version']==json.loads((Path(__file__).resolve().parents[1] / 'src/radia_optuna/upstream.json').read_text(encoding='utf-8'))['optuna']
     cases=data['cases'];records=[]
     for entry in cases:
         samples=[x for row in entry['samples'] for x in row]
