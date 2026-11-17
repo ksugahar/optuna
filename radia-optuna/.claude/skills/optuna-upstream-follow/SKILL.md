@@ -115,16 +115,18 @@ again on the new head.
    `tests/matlab/test_optuna_upstream_oracle.m` and
    `tests/matlab/test_optuna_mcp_oracle.m`.
 3. Native development builds, in this order (user 2026-11-17):
-   - On the build host: the CPU builds of both bindings (pybind11 and the
-     plain MEX). The CPU Python proof comes before the MEX link. Then the CPU
-     checks: no CUDA context, bitwise pybind11/MEX parity and CPU TPE parity.
-     CPU CI belongs on this host.
-   - On Flow2: the Python/pybind11 GPU build (Linux, without MATLAB or
-     Simulink) with `tools/build_linux_python.py`, then
-     `validation_test/validate_kernels.py` for the CPU and GPU backends.
-   - On A100: the MATLAB GPU build (plain MEX linked to the same nvcc object)
-     and the GPU checks: binding parity, CUDA validation, GPU TPE, GPU
-     Simulink and Engine.
+   - On the build host: compile the CUDA-enabled Windows bindings once.
+     The Windows pybind11 module and the plain MEX link the same Windows nvcc
+     object/archive, and the CPU Python proof comes before the MEX link.
+     Exercise both bindings in CPU mode only: no CUDA context, bitwise
+     pybind11/MEX parity and CPU TPE parity. The CPU CI jobs run here.
+   - On Flow2: build the Linux Python/pybind11 route from the same common CUDA
+     source with `tools/build_linux_python.py` (without MATLAB or Simulink),
+     then run `validation_test/validate_kernels.py` for the CPU and GPU
+     backends. Flow2 contributes Python GPU evidence only; no Linux object
+     goes to A100.
+   - On A100: run the Windows bindings from the build host in GPU mode:
+     binding parity, CUDA validation, GPU TPE, GPU Simulink and Engine.
 
    These builds find problems early. They do not qualify the release wheel.
    Record the SHA they ran on.
