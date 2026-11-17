@@ -322,3 +322,13 @@ def test_wheel_unrecorded_member_is_rejected():
         archive.writestr("radia_optuna/unrecorded.py", b"unrecorded = True\n")
     with pytest.raises(gate.GateError, match="Unrecorded wheel members"):
         gate.wheel_source(data.getvalue(), SOURCE)
+
+@pytest.mark.parametrize("version,ok", [("1.2.3", True), ("1.2.3.4", True),
+    ("1.2", False), ("1.2.3.4.5", False), ("1.2.3a1", False), ("1.2.3.post1", False)])
+def test_release_version_accepts_upstream_and_radia_fix_forms(version, ok):
+    ctx = dict(context(), ref="refs/tags/radia-optuna-v" + version)
+    if ok:
+        assert gate.ref_identity(ctx, version)[1] == "radia-optuna-v" + version
+    else:
+        with pytest.raises(gate.GateError, match="Invalid release version"):
+            gate.ref_identity(ctx, version)

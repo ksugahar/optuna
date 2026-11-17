@@ -133,7 +133,7 @@ def ref_identity(context, version):
     repo = context["repository"]
     require(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo)
             and not any(x in {".", ".."} for x in repo.split("/")), "Invalid repository")
-    require(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "Invalid release version")
+    require(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?", version), "Invalid release version")
     tag = "radia-optuna-v" + version
     require(context["ref_type"] == "tag" and context["ref"] == "refs/tags/" + tag,
             "Dispatch must use the exact package-version tag ref")
