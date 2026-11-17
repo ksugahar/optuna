@@ -636,11 +636,14 @@ def _artifact_contract() -> dict[str, object]:
         )
         backoff_id = "backoff"
         backoff.write(backoff_id, BytesIO(b"retry-body"))
-        backoff_body = backoff.open_reader(backoff_id).read()
+        with backoff.open_reader(backoff_id) as reader:
+            backoff_body = reader.read()
+        backoff.remove(backoff_id)
         try:
-            backoff.remove(backoff_id)
-        except Exception as error:  # noqa: BLE001 - Optuna 5.0 retry-loop behavior.
-            backoff_remove_error = type(error).__name__
+            with backoff.open_reader(backoff_id):
+                raise RuntimeError("Backoff.remove returned without removing the artifact.")
+        except optuna.artifacts.exceptions.ArtifactNotFound as error:
+            backoff_missing_error = type(error).__name__
 
     boto_client = BotoClient()
     with patch("optuna.artifacts._boto3._imports.check", return_value=None):
@@ -661,7 +664,7 @@ def _artifact_contract() -> dict[str, object]:
     return {
         "artifact_id": artifact_id,
         "backoff_body": list(backoff_body),
-        "backoff_remove_error": backoff_remove_error,
+        "backoff_missing_error": backoff_missing_error,
         "boto_open": list(boto_open),
         "boto_written": list(boto_written),
         "downloaded": list(downloaded),
