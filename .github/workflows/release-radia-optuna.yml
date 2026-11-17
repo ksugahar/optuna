@@ -14,6 +14,10 @@ on:
         required: true
         type: string
 
+defaults:
+  run:
+    working-directory: radia-optuna
+
 permissions:
   actions: read
   contents: read
@@ -24,6 +28,7 @@ concurrency:
 
 jobs:
   verify:
+    if: github.repository == 'ksugahar/optuna'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -53,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: radia-optuna-publication-proof
-          path: publication-proof.json
+          path: radia-optuna/publication-proof.json
           if-no-files-found: error
           retention-days: 7
       - name: Check approval proof download before requesting approval
@@ -62,7 +67,7 @@ jobs:
           artifact-ids: ${{ steps.proof.outputs.artifact-id }}
           run-id: ${{ github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: proof
+          path: radia-optuna/proof
           merge-multiple: true
       - name: Compare the downloaded approval proof with the original
         run: cmp publication-proof.json proof/publication-proof.json
@@ -95,7 +100,7 @@ jobs:
           artifact-ids: ${{ needs.verify.outputs.proof_artifact_id }}
           run-id: ${{ github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: proof
+          path: radia-optuna/proof
           merge-multiple: true
       - name: Recheck the same source, CI attempt, artifact ID and wheel after approval
         id: audit
@@ -112,7 +117,7 @@ jobs:
         if: steps.audit.outputs.pypi_exists == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: dist/
+          packages-dir: radia-optuna/dist/
       - name: Publish or resume the same GitHub Release bytes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

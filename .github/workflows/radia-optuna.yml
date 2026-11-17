@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+defaults:
+  run:
+    working-directory: radia-optuna
+
 permissions:
   contents: read
 
@@ -96,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: radia-optuna-wheel
-          path: dist/*.whl
+          path: radia-optuna/dist/*.whl
           if-no-files-found: error
           retention-days: 7
 
@@ -112,7 +116,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: radia-optuna-wheel
-          path: dist/radia-optuna
+          path: radia-optuna/dist/radia-optuna
 
 
       - name: Verify the GPU from the installed release wheel
@@ -128,7 +132,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: radia-optuna-simulink-gpu-acceptance
-          path: build-optuna-gpu-evidence/*.json
+          path: radia-optuna/build-optuna-gpu-evidence/*.json
           if-no-files-found: warn
 
   installed-wheel-release-engine:
@@ -141,7 +145,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: radia-optuna-wheel
-          path: dist/radia-optuna
+          path: radia-optuna/dist/radia-optuna
       - name: Qualify the exact CI wheel through MATLAB Engine
         shell: pwsh
         env:
@@ -170,7 +174,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: radia-optuna-wheel
-          path: dist/radia-optuna
+          path: radia-optuna/dist/radia-optuna
 
       - name: Install the built wheel and record its import identity
         shell: pwsh
@@ -219,7 +223,7 @@ jobs:
         with:
           name: radia-optuna-hdf5-storage-receipt
           path: |
-            installed-wheel-identity.json
-            installed-wheel-hdf5-storage.json
+            radia-optuna/installed-wheel-identity.json
+            radia-optuna/installed-wheel-hdf5-storage.json
           if-no-files-found: error
           retention-days: 30
