@@ -33,7 +33,18 @@ def native_inputs(samples, mixture):
     return rows.ravel().tolist(), specs
 
 
-class NativeScoringSampler(optuna.samplers.TPESampler):
+class TracedSampler(optuna.samplers.TPESampler):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.winners = []
+
+    def _compute_acquisition_func(self, samples, mpe_below, mpe_above):
+        scores = super()._compute_acquisition_func(samples, mpe_below, mpe_above)
+        self.winners.append(int(np.argmax(scores)))
+        return scores
+
+
+class NativeScoringSampler(TracedSampler):
     """Benchmark adapter. Upstream owns history, sampling and RNG."""
 
     def __init__(self, backend, kernels, **kwargs):
@@ -50,6 +61,7 @@ class NativeScoringSampler(optuna.samplers.TPESampler):
         # Upstream _compare consumes only the argmax, so expose the native winner.
         acquisition = np.zeros(len(next(iter(samples.values()))))
         acquisition[index] = 1
+        self.winners.append(index)
         return acquisition
 
 
@@ -67,7 +79,7 @@ def stats_delta(before, after):
 
 def ask_case(kernels, backend, candidates, components, calls):
     options = dict(seed=721, n_ei_candidates=candidates, multivariate=True)
-    sampler = (optuna.samplers.TPESampler(**options) if backend == "numpy"
+    sampler = (TracedSampler(**options) if backend == "numpy"
                else NativeScoringSampler(backend, kernels, **options))
     study = optuna.create_study(sampler=sampler)
     space = {"x": optuna.distributions.FloatDistribution(-2, 2),
@@ -83,12 +95,16 @@ def ask_case(kernels, backend, candidates, components, calls):
         ))
     timings = []
     proposals = []
+    indices = []
     for _ in range(calls):
+        sampler.winners.clear()
         trial = time_call(lambda: study.ask(fixed_distributions=space), timings)
         proposals.append(trial.params)
+        indices.append(list(sampler.winners))
         study.tell(trial, trial.params["x"] ** 2 + trial.params["scale"])
     checksum = hashlib.sha256(json.dumps(proposals, sort_keys=True, allow_nan=False).encode())
-    return {"samples_ns": timings, "proposal_sha256": checksum.hexdigest(), "proposals": proposals}
+    return {"samples_ns": timings, "proposal_sha256": checksum.hexdigest(),
+            "proposals": proposals, "selected_indices": indices}
 
 
 def primitive_case(kernels, backend, candidates, components, calls):
@@ -239,6 +255,9 @@ def formal_models(kernels, backend, calls):
         matrix = lower._transform(samples)
         native_rows, _ = native_inputs(matrix, lower._mixture_distribution)
         native_matrix = np.asarray(native_rows).reshape(-1, len(space))
+        expected_index = int(np.argmax(lower.log_pdf(samples) - upper.log_pdf(samples)))
+        # Use the existing MATLAB oracle tolerance for platform-specific RNG math.
+        np.testing.assert_allclose(native_matrix[expected_index], case["best"], rtol=0, atol=5e-11)
 
         def build_and_best():
             if backend == "gpu":
@@ -276,7 +295,11 @@ def formal_models(kernels, backend, calls):
         durations = []
         for _ in range(calls):
             best = time_call(build_and_best, durations)
-            np.testing.assert_array_equal(native_matrix[best], case["best"])
+            if best != expected_index:
+                raise RuntimeError(
+                    f"Stored model case {case['name']} ({backend}): "
+                    f"candidate {best} != upstream candidate {expected_index}"
+                )
         yield {"case": case["name"], "backend": backend, "samples_ns": {"build_and_best": durations}}
 
 
@@ -328,8 +351,16 @@ def main():
                 if args.lane == "ask":
                     digest = record["proposal_sha256"]
                     if backend == "numpy":
-                        reference = digest
-                    elif digest != reference:
+                        reference = record
+                    elif digest != reference["proposal_sha256"] or record["selected_indices"] != reference["selected_indices"]:
+                        for i, (expected, actual) in enumerate(zip(reference["proposals"], record["proposals"])):
+                            lo, hi = reference["selected_indices"][i], record["selected_indices"][i]
+                            if expected != actual or lo != hi:
+                                report["first_proposal_mismatch"] = dict(
+                                    backend=backend, candidates=candidates, initial_components=components,
+                                    call=i + 1, upstream_indices=lo, native_indices=hi,
+                                )
+                                break
                         raise RuntimeError(f"Seeded proposal mismatch: {backend}, {candidates}, {components}")
         if args.lane == "primitives":
             for backend in ("numpy", "cpu", "gpu"):

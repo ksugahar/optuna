@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- GPU TPE candidate scoring evaluates both mixtures in one kernel launch.
+  `density_launches` now increases by one per GPU `best()` call, down from two.
+
 ## 5.1.0 (unreleased)
 
 - Align the distribution version with upstream Optuna.
