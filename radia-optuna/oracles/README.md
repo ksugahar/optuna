@@ -112,3 +112,34 @@ identifies stored files, not a new generation run or numerical certification.
 The distribution manifest links it; wheel verification checks every payload
 against both this ledger and the checked package source. No producer is shipped.
 Existing fixture provenance and the reviewed identities above remain unchanged.
+
+## Regeneration command
+
+After approval, run from the package directory with the recorded Python
+interpreter and a clean, committed package tree. This command uses the two
+NumPy environments recorded in `upstream.json` and installs CPU-side oracle
+dependencies into scratch venvs. It never builds or launches CUDA kernels.
+
+```console
+python tools/regenerate_oracles.py --optuna <version> --optuna-mcp <version> --out <new-scratch-dir> --reason "<approved reason>"
+```
+
+Use a directory outside the checkout that does not exist yet. The tool archives
+the committed package, adapts only the frozen producer version guards in
+scratch, maps historical output names, and runs the five producers and two
+derived generators. The proposed files go under `fixtures/`. Review
+`provenance.json` for the source, original and executed producer hashes,
+interpreter, installed distributions and exact commands. Review `diff.json`
+for byte counts, hashes, case paths, sequence and object order, numerical
+deltas, and changes under RNG-related fields. Per-command logs and the
+snapshot are kept in the output directory for diagnosis. If the producer
+source has already been updated for the target version, pass
+`--baseline-ref <old-reviewed-commit>` to compare its generated output with
+the previous fixtures.
+
+Review and adopt the proposed files explicitly in the migration PR along
+with the producer edits, compatibility metadata and fixture identity hashes.
+For the CUDA oracle, compare the embedded producer fingerprint against the
+actual LF-normalized producer in that PR, then generate again from that exact
+committed source if it differs. A generation report establishes provenance
+for the run and does not certify any numerical change.
