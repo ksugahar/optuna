@@ -22,7 +22,7 @@
     },
     "mcp_oracle": {
       "path": "oracles/optuna_mcp_oracle.json",
-      "sha256": "890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa"
+      "sha256": "894dff133d12e2f2e13058b17bfa4dd5e81aadf8c36668042e0703b0d7f3cd0e"
     },
     "test_manifest": {
       "path": "oracles/optuna_test_manifest.json",

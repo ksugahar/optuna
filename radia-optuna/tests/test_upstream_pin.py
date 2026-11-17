@@ -52,6 +52,7 @@ def test_upstream_pin_matches_compatibility_metadata():
             assert fixture[f"{dependency}_version"] == version, (name, dependency)
     mcp = json.loads((ROOT / "oracles/optuna_mcp_oracle.json").read_text(encoding="utf-8"))
     assert mcp["optuna_mcp_version"] == PIN["optuna_mcp"]
+    assert mcp["mcp_server_reported_version"] == PIN["generation"]["mcp_oracle"]["mcp"]
 
 
 def release_pin(version):

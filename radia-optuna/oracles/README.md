@@ -57,15 +57,16 @@ The same explicit review and regeneration policy above applies.
 `generate_optuna_mcp_oracle.py` and `optuna_mcp_oracle.json` are
 inputs moved unchanged from commit
 `abad8cc4c79faea5e068f3c78ab01b729c407d5c`. The stored fixture records
-Optuna 5.0.0, optuna-mcp 0.2.0 and stdio transport. It has no embedded
+Optuna 5.1.0, optuna-mcp 0.2.0 and stdio transport.
+Regeneration with the prior MCP SDK (1.27.0) changed only the Optuna version. It has no embedded
 producer fingerprint; the source identity contract records the reviewed
 producer and fixture bytes without inventing generation metadata. The
 producer must not be executed during relocation or ordinary source checks.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna_mcp_oracle.py` | `7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb` |
-| `optuna_mcp_oracle.json` | `890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa` |
+| `generate_optuna_mcp_oracle.py` | `b1ecc55ace63671b153fceaa5b90f0a3cbf3b25f855ce9f5de758294ab399ba6` |
+| `optuna_mcp_oracle.json` | `894dff133d12e2f2e13058b17bfa4dd5e81aadf8c36668042e0703b0d7f3cd0e` |
 
 ## Public API inventory
 

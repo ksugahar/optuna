@@ -192,6 +192,8 @@ def regenerate(args):
     torch = f"torch=={main_pins['torch']}"
     main_python = environment("venv-main", [
         optuna, f"optuna-mcp=={args.optuna_mcp}", f"numpy=={main_pins['numpy']}",
+        # Match the SDK reported by the prior MCP oracle. MCP 2 removes FastMCP.
+        f"mcp=={pin['generation']['mcp_oracle']['mcp']}",
         f"scipy=={main_pins['scipy']}", f"cmaes=={main_pins['cmaes']}", torch,
         "matplotlib!=3.6.0", "plotly>=4.9,<7", "pandas", "redis", "scikit-learn",
         "grpcio", "protobuf>=5.28.1",

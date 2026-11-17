@@ -31,8 +31,8 @@ import pytest
         ),
         pytest.param(
             "generate_optuna_mcp_oracle.py", "optuna_mcp_oracle.json",
-            "7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb",
-            "890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa",
+            "b1ecc55ace63671b153fceaa5b90f0a3cbf3b25f855ce9f5de758294ab399ba6",
+            "894dff133d12e2f2e13058b17bfa4dd5e81aadf8c36668042e0703b0d7f3cd0e",
             False, id="mcp50",
         ),
         pytest.param(
