@@ -2810,6 +2810,19 @@ def _study_management_contract() -> dict[str, object]:
         to_study_name="beta",
     )
     copied = optuna.load_study(study_name="beta", storage=target_storage)
+    unnamed_storage = optuna.storages.InMemoryStorage()
+    optuna.copy_study(
+        from_study_name="alpha",
+        from_storage=source_storage,
+        to_storage=unnamed_storage,
+        to_study_name="",
+    )
+    omitted_storage = optuna.storages.InMemoryStorage()
+    optuna.copy_study(
+        from_study_name="alpha",
+        from_storage=source_storage,
+        to_storage=omitted_storage,
+    )
     summary = optuna.get_all_study_summaries(target_storage)[0]
     summary_without_best = optuna.get_all_study_summaries(
         target_storage, include_best_trial=False
@@ -2832,6 +2845,8 @@ def _study_management_contract() -> dict[str, object]:
     names_after_delete = optuna.get_all_study_names(source_storage)
     return {
         "loaded": loaded_result,
+        "explicit_empty_copy_name": optuna.get_all_study_names(unnamed_storage)[0],
+        "omitted_copy_name": optuna.get_all_study_names(omitted_storage)[0],
         "copied": {
             "name": copied.study_name,
             "direction": copied.direction.name,
@@ -3571,6 +3586,7 @@ def build_oracle() -> dict[str, object]:
         "python_version": sys.version.split()[0],
         "torch_version": importlib.metadata.version("torch"),
         "cmaes_version": importlib.metadata.version("cmaes"),
+        "scikit_learn_version": importlib.metadata.version("scikit-learn"),
         "constructor_defaults": _constructor_default_contract(),
         "defaults": {
             "anonymous_prefix": "no-name-",

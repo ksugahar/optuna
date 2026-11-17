@@ -195,7 +195,8 @@ def regenerate(args):
         # Match the SDK reported by the prior MCP oracle. MCP 2 removes FastMCP.
         f"mcp=={pin['generation']['mcp_oracle']['mcp']}",
         f"scipy=={main_pins['scipy']}", f"cmaes=={main_pins['cmaes']}", torch,
-        "matplotlib!=3.6.0", "plotly>=4.9,<7", "pandas", "redis", "scikit-learn",
+        "matplotlib!=3.6.0", "plotly>=4.9,<7", "pandas", "redis",
+        f"scikit-learn=={main_pins['scikit_learn']}",
         "grpcio", "protobuf>=5.28.1",
     ], torch=torch)
     cuda_python = environment("venv-cuda-fixtures", [optuna, f"numpy=={cuda_pins['numpy']}"])

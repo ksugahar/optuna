@@ -801,7 +801,9 @@ expected=testCase.TestData.Oracle.study_management;
 source=string(tempname("C:\temp"))+".h5";
 target=string(tempname("C:\temp"))+".h5";
 multiTarget=string(tempname("C:\temp"))+".h5";
-cleanup=onCleanup(@()cleanupStudyFiles([source,target,multiTarget]));
+emptyTarget=string(tempname("C:\temp"))+".h5";
+defaultTarget=string(tempname("C:\temp"))+".h5";
+cleanup=onCleanup(@()cleanupStudyFiles([source,target,multiTarget,emptyTarget,defaultTarget]));
 study=radia.optuna.create_study(study_name="alpha", ...
     direction="maximize",storage=source);
 study.add_trial(radia.optuna.createTrial(Value=1.25, ...
@@ -830,6 +832,15 @@ snapshot=copied.best_trial();
 verifyEqualWithPrecision(testCase,snapshot.Params.x,double(expected.copied.param_x));
 verifyEqualWithPrecision(testCase,string(snapshot.UserAttrs.origin), ...
     string(expected.copied.user_origin));
+
+radia.optuna.copy_study(from_study_name="alpha", ...
+    from_storage=source,to_storage=emptyTarget,to_study_name="");
+verifyEqualWithPrecision(testCase,radia.optuna.get_all_study_names(emptyTarget), ...
+    string(expected.explicit_empty_copy_name));
+radia.optuna.copyStudy(from_study_name="alpha", ...
+    from_storage=source,to_storage=defaultTarget);
+verifyEqualWithPrecision(testCase,radia.optuna.get_all_study_names(defaultTarget), ...
+    string(expected.omitted_copy_name));
 
 summary=radia.optuna.get_all_study_summaries(target);
 verifyClass(testCase,summary,"radia.optuna.StudySummary");
