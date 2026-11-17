@@ -1,6 +1,12 @@
 # Changelog
 
-## 5.1.0.1 (2026-11-18)
+## 5.1.0.2 (2026-11-18)
+
+- The publication gate accepts the radia-only fourth version component.
+- First published release with the change below; 5.1.0.1 was tagged but never
+  published because the gate rejected its version.
+
+## 5.1.0.1 (unpublished)
 
 - GPU TPE candidate scoring evaluates both mixtures in one kernel launch.
   `density_launches` now increases by one per GPU `best()` call, down from two.

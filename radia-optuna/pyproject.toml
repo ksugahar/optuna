@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "radia-optuna"
-version = "5.1.0.1"
+version = "5.1.0.2"
 description = "Shared native CPU/CUDA optimization with Python and MATLAB/Simulink adapters, verified against the pinned Optuna release"
 readme = "README.md"
 requires-python = ">=3.10"
