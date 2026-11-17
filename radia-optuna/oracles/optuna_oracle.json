@@ -7176,6 +7176,16 @@
     ],
     "seed": 37
   },
+  "migration_edges": {
+    "distinct_integer_queue_count": 2,
+    "grid_with_enqueued_first": [
+      1,
+      0
+    ],
+    "percentile_all_nan_candidate_prunes": true,
+    "percentile_all_nan_reference_prunes": false,
+    "percentile_runtime_warning": false
+  },
   "mixed_tpe_sampler_seed_43": [
     {
       "log_mesh": 2,
@@ -9669,6 +9679,7 @@
     "semantic": "fresh nondeterministic entropy per unseeded sampler instance"
   },
   "schema": "radia.test.optuna-upstream-oracle.v1",
+  "scikit_learn_version": "1.9.1",
   "scipy_version": "1.17.1",
   "scrambled_qmc_sampler_seed_47": {
     "halton": [
@@ -9917,6 +9928,7 @@
       "trial_count": 1,
       "user_origin": "oracle"
     },
+    "explicit_empty_copy_name": "",
     "loaded": {
       "best_value": 1.25,
       "direction": "MAXIMIZE",
@@ -9934,6 +9946,7 @@
     "names_before_delete": [
       "alpha"
     ],
+    "omitted_copy_name": "alpha",
     "summary": {
       "best_value": 1.25,
       "direction": "MAXIMIZE",
@@ -9944,7 +9957,9 @@
       "trial_count": 1,
       "type": "StudySummary",
       "without_best_has_best": false
-    }
+    },
+    "summary_feasible_best_value": 1.0,
+    "summary_has_best_with_only_infeasible": false
   },
   "study_summary": {
     "direction_names": [

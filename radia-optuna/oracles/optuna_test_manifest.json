@@ -810,6 +810,13 @@
       "file": "test_optuna_upstream_oracle.m",
       "oracle": "optuna_oracle.json",
       "scope": "shared Optuna 5.1.0 behavior",
+      "test": "testMigrationEdgeCasesMatchUpstream"
+    },
+    {
+      "classification": "upstream-python",
+      "file": "test_optuna_upstream_oracle.m",
+      "oracle": "optuna_oracle.json",
+      "scope": "shared Optuna 5.1.0 behavior",
       "test": "testStudyManagementMatchesUpstream"
     },
     {

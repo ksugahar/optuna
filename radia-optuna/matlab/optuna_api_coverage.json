@@ -752,6 +752,7 @@
         "importance",
         "lifecycle_errors",
         "memory_history_tpe",
+        "migration_edges",
         "mixed_tpe_sampler_seed_43",
         "multiobjective_tpe_sampler_seed_41",
         "multivariate_tpe_sampler_seed_67",
@@ -921,6 +922,7 @@
       "matlab_name": "radia.optuna (pruners namespace)",
       "oracle_sections": [
         "base_components",
+        "migration_edges",
         "pruners"
       ],
       "oracle_status": "verified",
@@ -950,6 +952,7 @@
         "grid_sampler_seed_17",
         "lifecycle_errors",
         "memory_history_tpe",
+        "migration_edges",
         "mixed_tpe_sampler_seed_43",
         "multiobjective_tpe_sampler_seed_41",
         "multivariate_tpe_sampler_seed_67",
@@ -2500,6 +2503,7 @@
       "kind": "class",
       "matlab_name": "radia.optuna.PercentilePruner",
       "oracle_sections": [
+        "migration_edges",
         "pruners"
       ],
       "oracle_status": "verified",
@@ -2962,6 +2966,7 @@
       "matlab_name": "radia.optuna.GridSampler",
       "oracle_sections": [
         "grid_sampler_seed_17",
+        "migration_edges",
         "sampler_public_members"
       ],
       "oracle_status": "verified",
@@ -8187,6 +8192,6 @@
   "upstream_inventory": "oracles/optuna_public_api.json",
   "upstream_inventory_sha256": "F4B8BD46DD72BCAFC8BD79651F368D90E7D77EEB318AD765F30B2363137BF678",
   "upstream_oracle": "oracles/optuna_oracle.json",
-  "upstream_oracle_sha256": "22AF33C8A9EBF48B305DD9808E8CFD0F5E59FE283BB6E6199B7A48757E68D1DB",
+  "upstream_oracle_sha256": "C981660F04E0500ED6FA60284C93ECF49DC09ABA9192A88BF66FA8A9EEA0E1A7",
   "upstream_version": "5.1.0"
 }
