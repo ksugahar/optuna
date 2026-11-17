@@ -106,6 +106,19 @@ def package(monkeypatch, tmp_path):
     return package
 
 
+def test_tag_accepts_four_segment_release_only_with_exact_ref():
+    version = f"{VERSION}.1"
+    c = context()
+    c["ref"] = f"refs/tags/radia-optuna-v{version}"
+    assert gate.ref_identity(c, version) == (c["repository"], f"radia-optuna-v{version}")
+    with pytest.raises(gate.GateError, match="exact package-version"):
+        gate.ref_identity(c, VERSION)
+    for invalid in (f"{VERSION}.post1", f"{VERSION}.1.1"):
+        c["ref"] = f"refs/tags/radia-optuna-v{invalid}"
+        with pytest.raises(gate.GateError, match="Invalid release version"):
+            gate.ref_identity(c, invalid)
+
+
 def test_tag_ci_artifact_and_approval_are_rechecked(package, tmp_path):
     service = Services()
     proof = gate.verify(service, context(), 7, gate.digest(service.wheel), tmp_path/"before")
