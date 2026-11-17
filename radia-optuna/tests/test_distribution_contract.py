@@ -82,7 +82,7 @@ def test_cuda_runtime_metadata_pin_matches_loader_and_rejects_mismatch(monkeypat
 
 
 def test_api_coverage_is_reproducible_and_names_real_matlab_packages(monkeypatch, tmp_path):
-    path = PACKAGE_ROOT / "tools/generate_optuna50_api_coverage.py"
+    path = PACKAGE_ROOT / "tools/generate_optuna_api_coverage.py"
     spec = importlib.util.spec_from_file_location("optuna_coverage_audit", path)
     assert spec is not None and spec.loader is not None
     generator = importlib.util.module_from_spec(spec)
@@ -138,7 +138,7 @@ def test_constructor_defaults_are_audited_against_the_pinned_oracle():
     constant_liar from False to True, and only the second had a named test.
     """
     oracle = json.loads(
-        (PACKAGE_ROOT / "oracles/optuna50_oracle.json").read_text(
+        (PACKAGE_ROOT / "oracles/optuna_oracle.json").read_text(
             encoding="utf-8"
         )
     )
@@ -152,7 +152,7 @@ def test_constructor_defaults_are_audited_against_the_pinned_oracle():
     assert record["parameter_count"] > 0
 
     coverage = json.loads(
-        (PACKAGE_ROOT / "matlab/optuna50_api_coverage.json").read_text(encoding="utf-8")
+        (PACKAGE_ROOT / "matlab/optuna_api_coverage.json").read_text(encoding="utf-8")
     )
     audit = coverage["constructor_default_audit"]
 
@@ -248,7 +248,7 @@ def test_staging_refuses_a_partial_native_distribution():
     assert "buildOptunaMex" in setup_source
     assert "optuna_mex.mexw64" in setup_source
     assert "optuna_upstream_compatibility.json" in setup_source
-    assert "optuna50_api_coverage.json" in setup_source
+    assert "optuna_api_coverage.json" in setup_source
     assert "THIRD_PARTY_NOTICES.md" in setup_source
     assert "Extension(\"radia_optuna._optuna_kernels\"" in setup_source
     assert '"build_ext": build_ext' in setup_source

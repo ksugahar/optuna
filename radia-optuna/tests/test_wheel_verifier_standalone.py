@@ -73,7 +73,7 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
         elif damage == "tampered":
             members[target] += b" "
         elif damage == "producer":
-            members["radia_optuna/oracles/generate_optuna50_oracle.py"] = b"raise RuntimeError('must not ship')\n"
+            members["radia_optuna/oracles/generate_optuna_oracle.py"] = b"raise RuntimeError('must not ship')\n"
         elif damage == "missing-pin":
             del members["radia_optuna/upstream.json"]
         else:
@@ -92,7 +92,7 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
     # Run the real package-local entry point without a monorepo or source-path
     # rescue. Only this detached copy's coverage ledger may be reproduced;
     # upstream producers and stored numerical expectations are read-only inputs.
-    coverage = detached / "matlab/optuna50_api_coverage.json"
+    coverage = detached / "matlab/optuna_api_coverage.json"
     expected_coverage = coverage.read_bytes().replace(b"\r\n", b"\n")
     inputs = {p: hashlib.sha256(p.read_bytes()).hexdigest()
               for p in (detached / "oracles").iterdir() if p.is_file()}
@@ -100,7 +100,7 @@ def test_detached_package_verifies_without_cpu_project(tmp_path):
     environment.pop("PYTHONPATH", None)
     environment.pop("RADIA_REPO_ROOT", None)
     completed = subprocess.run(
-        [sys.executable, str(detached / "tools/generate_optuna50_api_coverage.py")],
+        [sys.executable, str(detached / "tools/generate_optuna_api_coverage.py")],
         cwd=detached, env=environment, capture_output=True, text=True, timeout=60,
     )
     assert completed.returncode == 0, (completed.stdout, completed.stderr)

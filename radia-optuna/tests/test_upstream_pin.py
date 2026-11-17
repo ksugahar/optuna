@@ -17,18 +17,18 @@ FROZEN = {
     "optuna_handover.md",
     "optuna_review.md",
     "oracles/README.md",
-    "oracles/generate_optuna50_api_inventory.py",
+    "oracles/generate_optuna_api_inventory.py",
     "oracles/generate_optuna50_cuda_oracle.py",
-    "oracles/generate_optuna50_mcp_oracle.py",
-    "oracles/generate_optuna50_oracle.py",
+    "oracles/generate_optuna_mcp_oracle.py",
+    "oracles/generate_optuna_oracle.py",
     "oracles/generate_optuna_cuda_density_oracle.py",
     "oracles/optuna50_cuda_oracle.json",
-    "oracles/optuna50_mcp_oracle.json",
-    "oracles/optuna50_oracle.json",
-    "oracles/optuna50_public_api.json",
+    "oracles/optuna_mcp_oracle.json",
+    "oracles/optuna_oracle.json",
+    "oracles/optuna_public_api.json",
     "oracles/optuna_cuda_density_oracle.json",
     "oracles/optuna_test_manifest.json",
-    "matlab/optuna50_api_coverage.json",
+    "matlab/optuna_api_coverage.json",
     "matlab/optuna_upstream_compatibility.json",
     "src/radia_optuna/evidence_manifest.json",
 }
@@ -42,12 +42,12 @@ def test_upstream_pin_matches_compatibility_metadata():
     for name in ("manifest.json", "evidence_manifest.json"):
         record = json.loads((ROOT / "src/radia_optuna" / name).read_text(encoding="utf-8"))
         assert record["oracle_version"] == PIN["optuna"], name
-    for key, name in (("upstream_oracle", "optuna50_oracle.json"),
+    for key, name in (("upstream_oracle", "optuna_oracle.json"),
                       ("cuda_oracle", "optuna50_cuda_oracle.json")):
         fixture = json.loads((ROOT / "oracles" / name).read_text(encoding="utf-8"))
         for dependency, version in PIN["generation"][key].items():
             assert fixture[f"{dependency}_version"] == version, (name, dependency)
-    mcp = json.loads((ROOT / "oracles/optuna50_mcp_oracle.json").read_text(encoding="utf-8"))
+    mcp = json.loads((ROOT / "oracles/optuna_mcp_oracle.json").read_text(encoding="utf-8"))
     assert mcp["optuna_mcp_version"] == PIN["optuna_mcp"]
 
 

@@ -6,27 +6,27 @@
   "files": {
     "compatibility": {
       "path": "matlab/optuna_upstream_compatibility.json",
-      "sha256": "332471beabc755762972f143dbcf9a8dd245f9c4284fab741b58b5b52f8d9cca"
+      "sha256": "e2a6b11383ec23d14ad0015ab8d39997365357e107e28ddaac64d8970e62c7a2"
     },
     "api_coverage": {
-      "path": "matlab/optuna50_api_coverage.json",
+      "path": "matlab/optuna_api_coverage.json",
       "sha256": "ab3251d38be914f11adaacaedbe507f4040cf564d7137c1701d4605fb7ae0ff5"
     },
     "python_oracle": {
-      "path": "oracles/optuna50_oracle.json",
+      "path": "oracles/optuna_oracle.json",
       "sha256": "89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264"
     },
     "public_api_inventory": {
-      "path": "oracles/optuna50_public_api.json",
+      "path": "oracles/optuna_public_api.json",
       "sha256": "81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602"
     },
     "mcp_oracle": {
-      "path": "oracles/optuna50_mcp_oracle.json",
+      "path": "oracles/optuna_mcp_oracle.json",
       "sha256": "890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa"
     },
     "test_manifest": {
       "path": "oracles/optuna_test_manifest.json",
-      "sha256": "60aeeabe42193d3df2db0756b128a8fb9e09111d78dd86d7681f0be17f675148"
+      "sha256": "7ceaf323f844e5517176a2c0a7255ccab607883d36b261db6c6cc94efc03abbc"
     },
     "cuda_oracle": {
       "path": "oracles/optuna50_cuda_oracle.json",

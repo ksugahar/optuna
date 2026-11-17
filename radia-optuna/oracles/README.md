@@ -1,5 +1,10 @@
 # CUDA oracle source evidence
 
+The version-neutral names below refer to the same producer and fixture
+bytes. Their embedded historical paths and default output filenames are
+preserved. Run frozen producers only in a separate regeneration directory,
+where the regeneration tool can map those outputs to the current names.
+
 Stored upstream inputs originate in Optuna 5.0.0, not in Radia or MATLAB.
 The six JSON inputs (including MATLAB classification metadata) are wheel
 payloads under `radia_optuna/oracles`. Producers stay source-only and are
@@ -47,7 +52,7 @@ The same explicit review and regeneration policy above applies.
 
 ## Official MCP oracle
 
-`generate_optuna50_mcp_oracle.py` and `optuna50_mcp_oracle.json` are
+`generate_optuna_mcp_oracle.py` and `optuna_mcp_oracle.json` are
 inputs moved unchanged from commit
 `abad8cc4c79faea5e068f3c78ab01b729c407d5c`. The stored fixture records
 Optuna 5.0.0, optuna-mcp 0.2.0 and stdio transport. It has no embedded
@@ -57,8 +62,8 @@ producer must not be executed during relocation or ordinary source checks.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna50_mcp_oracle.py` | `7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb` |
-| `optuna50_mcp_oracle.json` | `890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa` |
+| `generate_optuna_mcp_oracle.py` | `7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb` |
+| `optuna_mcp_oracle.json` | `890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa` |
 
 ## Public API inventory
 
@@ -69,8 +74,8 @@ relocation never runs the producer or changes exported names/defaults/order.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna50_api_inventory.py` | `351d63e534dcca09fc9b47493e4942cd728b59e32cea99c6694ca64d946f7e00` |
-| `optuna50_public_api.json` | `81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602` |
+| `generate_optuna_api_inventory.py` | `351d63e534dcca09fc9b47493e4942cd728b59e32cea99c6694ca64d946f7e00` |
+| `optuna_public_api.json` | `81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602` |
 
 ## Main upstream behavior oracle
 
@@ -83,15 +88,16 @@ No producer execution or expectation regeneration is part of this move.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna50_oracle.py` | `4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac` |
-| `optuna50_oracle.json` | `89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264` |
+| `generate_optuna_oracle.py` | `4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac` |
+| `optuna_oracle.json` | `89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264` |
 
 ## MATLAB test classification
 
 `optuna_test_manifest.json` is classification metadata, not a numerical oracle.
 It was moved byte-for-byte from commit `73ff5ad1b9bee1c5b37fe4e54c20e622580ae59d`
 (SHA256 `ff8c3794f3a2f85f7d9e55087df59c16b94d713960a955f77db484bafc2cde43`). The class tables and ordering
-are unchanged. Its package-owned generator requires an explicit test directory
+are unchanged. The current manifest updates only the renamed oracle
+locators. Its package-owned generator requires an explicit test directory
 and output; it never discovers a monorepo or rewrites this file implicitly:
 
 ```console

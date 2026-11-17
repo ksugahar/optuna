@@ -11,10 +11,10 @@ from typing import Any
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM_VERSION = json.loads((PACKAGE_ROOT / "src/radia_optuna/upstream.json").read_text(encoding="utf-8"))["optuna"]
-INVENTORY_PATH = PACKAGE_ROOT / "oracles/optuna50_public_api.json"
-ORACLE_PATH = PACKAGE_ROOT / "oracles/optuna50_oracle.json"
+INVENTORY_PATH = PACKAGE_ROOT / "oracles/optuna_public_api.json"
+ORACLE_PATH = PACKAGE_ROOT / "oracles/optuna_oracle.json"
 MATLAB_DIRECTORY = PACKAGE_ROOT / "matlab" / "+radia" / "+optuna"
-DESTINATION = PACKAGE_ROOT / "matlab" / "optuna50_api_coverage.json"
+DESTINATION = PACKAGE_ROOT / "matlab" / "optuna_api_coverage.json"
 FUNCTION_PATTERN = re.compile(
     r"(?m)^\s*function\s+(?:\[[^]]*\]|\w+)\s*=\s*(\w+)\s*\(|"
     r"^\s*function\s+(\w+)\s*\("
@@ -1205,8 +1205,8 @@ def _oracle_generator_sections() -> dict[str, set[str]]:
     generators, so an entry without a generating section cannot be counted as
     verified.
     """
-    oracle_source = PACKAGE_ROOT / "oracles/generate_optuna50_oracle.py"
-    mcp_source = PACKAGE_ROOT / "oracles/generate_optuna50_mcp_oracle.py"
+    oracle_source = PACKAGE_ROOT / "oracles/generate_optuna_oracle.py"
+    mcp_source = PACKAGE_ROOT / "oracles/generate_optuna_mcp_oracle.py"
     tree = ast.parse(oracle_source.read_text(encoding="utf-8"))
     functions = {
         node.name: node
@@ -1247,7 +1247,7 @@ def _oracle_generator_sections() -> dict[str, set[str]]:
     unknown = sorted(set(section_producers) - fixture_sections)
     if unknown:
         raise RuntimeError(
-            "build_oracle() names sections absent from optuna50_oracle.json: "
+            "build_oracle() names sections absent from optuna_oracle.json: "
             + ", ".join(unknown)
         )
 

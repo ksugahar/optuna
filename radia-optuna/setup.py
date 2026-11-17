@@ -28,7 +28,7 @@ NATIVE_SOURCE = PACKAGE_ROOT / "src/radia_optuna" / ("_optuna_kernels" + sysconf
 BUILD_RECEIPT = PACKAGE_ROOT / "src/radia_optuna/native_build.json"
 CONTRACT_SOURCES = (
     MATLAB_ROOT / "optuna_upstream_compatibility.json",
-    MATLAB_ROOT / "optuna50_api_coverage.json",
+    MATLAB_ROOT / "optuna_api_coverage.json",
 )
 SIMULINK_SOURCES = (
     MATLAB_ROOT / "+radia" / "+simulink" / "buildOptunaBlock.m",

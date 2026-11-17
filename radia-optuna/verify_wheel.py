@@ -98,7 +98,7 @@ def _source_payloads(source_manifest: dict[str, object]) -> dict[str, Path]:
             continue
         member = MATLAB_PREFIX / PurePosixPath(source.relative_to(matlab_root).as_posix())
         payloads[str(member)] = source
-    for name in ("optuna_upstream_compatibility.json", "optuna50_api_coverage.json"):
+    for name in ("optuna_upstream_compatibility.json", "optuna_api_coverage.json"):
         payloads[str(MATLAB_PREFIX / name)] = matlab_root / name
     payloads[str(MATLAB_PREFIX / "optuna_mex.mexw64")] = (
         matlab_root / "optuna_mex.mexw64"
@@ -256,7 +256,7 @@ def verify(wheel: Path, *, release_candidate: bool = False) -> dict[str, object]
         expected_fixed = {
             str(MATLAB_PREFIX / "optuna_mex.mexw64"),
             str(MATLAB_PREFIX / "optuna_upstream_compatibility.json"),
-            str(MATLAB_PREFIX / "optuna50_api_coverage.json"),
+            str(MATLAB_PREFIX / "optuna_api_coverage.json"),
             str(MATLAB_PREFIX / "README.md"),
             str(MATLAB_PREFIX / "LICENSE"),
             str(MATLAB_PREFIX / "THIRD_PARTY_NOTICES.md"),

@@ -46,7 +46,7 @@ commit that changes no expected values:
   identity contract (`oracles/README.md` and `tests/test_cuda_oracle_provenance.py`),
   the distribution contract, `src/radia_optuna/evidence_manifest.json`,
   `setup.py`, `verify_wheel.py` and its tests, `tools/build_native.py`,
-  `tools/generate_optuna50_api_coverage.py`, `tools/generate_optuna_test_manifest.py`,
+  `tools/generate_optuna_api_coverage.py`, `tools/generate_optuna_test_manifest.py`,
   the test manifest, the MATLAB consumers in `tests/matlab/` and
   `validation_test/`, and `matlab/` metadata. Use `git grep optuna50_` to find
   them.
@@ -78,14 +78,14 @@ producers are:
 
 | Producer | Fixture |
 | --- | --- |
-| `oracles/generate_optuna50_oracle.py` | main upstream behavior oracle |
+| `oracles/generate_optuna_oracle.py` | main upstream behavior oracle |
 | `oracles/generate_optuna50_cuda_oracle.py` | CUDA selection/model oracle (embeds its own LF-normalized hash) |
 | `oracles/generate_optuna_cuda_density_oracle.py` | density oracle (writes the fixture at module import) |
-| `oracles/generate_optuna50_mcp_oracle.py` | MCP oracle (needs the matching optuna-mcp) |
-| `oracles/generate_optuna50_api_inventory.py` | public API inventory |
+| `oracles/generate_optuna_mcp_oracle.py` | MCP oracle (needs the matching optuna-mcp) |
+| `oracles/generate_optuna_api_inventory.py` | public API inventory |
 
 After the step 2 rename, use the version-neutral names. Then rebuild the
-derived files: the API coverage (`tools/generate_optuna50_api_coverage.py`, or
+derived files: the API coverage (`tools/generate_optuna_api_coverage.py`, or
 its renamed successor) and the test manifest
 (`python tools/generate_optuna_test_manifest.py --test-directory tests/matlab --output <file>`).
 
