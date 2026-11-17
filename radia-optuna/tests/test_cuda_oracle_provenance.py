@@ -43,8 +43,8 @@ import pytest
         ),
         pytest.param(
             "generate_optuna_oracle.py", "optuna_oracle.json",
-            "4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac",
-            "89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264",
+            "d06fa7ff30d4f4df98ddb22105025e485846ac99294411680ed23f37c13c15dc",
+            "22af33c8a9ebf48b305dd9808e8cfd0f5e59fe283bb6e6199b7a48757e68d1db",
             False, id="upstream50",
         ),
     ],

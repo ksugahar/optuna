@@ -83,17 +83,20 @@ upstream version and the NSGA-III reference-point input type in the inventory.
 
 ## Main upstream behavior oracle
 
-The producer and fixture were moved unchanged from commit
-`82341f805ce35e02556a75db9ef174db9d5ceff7`. The fixture retains its recorded Optuna 5.0.0,
-NumPy 2.5.2 and other generation versions. It has no embedded generator hash.
-The identity contract records reviewed source bytes; historical result records
-keep their original command paths as provenance rather than live locators.
-No producer execution or expectation regeneration is part of this move.
+The original producer and fixture were moved unchanged from commit
+`82341f805ce35e02556a75db9ef174db9d5ceff7`. The 5.1.0 fixture was regenerated
+on hosted Windows with Python 3.12.10,
+NumPy 2.5.2, SciPy 1.17.1 and PyTorch 2.11.0+cu126. The same job ran the
+5.0.0 producer with the same dependencies. The matched comparison found only
+the upstream version, the artifact removal contract and the NSGA-III
+reference-point annotation changed. The stored-to-matched 5.0.0 comparison
+accounts for the floating-point and importance differences in the new fixture.
+The fixture has no embedded generator hash.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna_oracle.py` | `4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac` |
-| `optuna_oracle.json` | `89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264` |
+| `generate_optuna_oracle.py` | `d06fa7ff30d4f4df98ddb22105025e485846ac99294411680ed23f37c13c15dc` |
+| `optuna_oracle.json` | `22af33c8a9ebf48b305dd9808e8cfd0f5e59fe283bb6e6199b7a48757e68d1db` |
 
 ## MATLAB test classification
 
