@@ -19,14 +19,14 @@ import pytest
     [
         pytest.param(
             "generate_optuna50_cuda_oracle.py", "optuna50_cuda_oracle.json",
-            "68b26d2ad46e9c7595f6f9ead22894ab3df3fb9c77ee6f96caec3acca993957b",
-            "e72ccf5cdb84cbd50c61d8b445d1310e02ea1bf9a2eab51baddc2d7eec29e9bf",
+            "b5e49a9bea5253c8e1a7b55222a3a2a66a3915da475797c5d1248f8ecb0dd7dc",
+            "73375a7e511cfccaa4916b4304c433c9f53e3d881df0b10c9dc5a3c29d0fa4d8",
             True, id="cuda50",
         ),
         pytest.param(
             "generate_optuna_cuda_density_oracle.py", "optuna_cuda_density_oracle.json",
-            "434e0ed2aacb6dec0db5d9e99a99f9a05cf0d75fb02d04e2e9310fc94bfe654f",
-            "04d11672c5dfd73f7dc399fc237d2f8e1c8b01c2bff06cb1a7ed5085f807dbfc",
+            "3cf68642bd20dd9d1eafe32f659525689cdc26843f7fbbc83a1bb2f1e5e49b36",
+            "167f8bef1d1088ab5c55c6bb2845c97e6084a496e665d672e9e877b20697545b",
             False, id="density",
         ),
         pytest.param(
@@ -37,8 +37,8 @@ import pytest
         ),
         pytest.param(
             "generate_optuna_api_inventory.py", "optuna_public_api.json",
-            "351d63e534dcca09fc9b47493e4942cd728b59e32cea99c6694ca64d946f7e00",
-            "81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602",
+            "bcc580d912b0e5f724d8e9ece58d48674f267a208a792ffe535fabdce81ece12",
+            "f4b8bd46dd72bcafc8bd79651f368d90e7d77eeb318ad765f30b2363137bf678",
             False, id="api50",
         ),
         pytest.param(
