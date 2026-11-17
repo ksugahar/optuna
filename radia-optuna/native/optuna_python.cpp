@@ -139,7 +139,12 @@ PYBIND11_MODULE(_optuna_kernels,m) {
         d["density_launches"]=s.density_launches;d["selection_launches"]=s.selection_launches;
         d["model_build_launches"]=s.model_build_launches;d["model_reuses"]=s.model_reuses;
         d["host_to_device_bytes"]=s.host_to_device_bytes;d["device_to_host_bytes"]=s.device_to_host_bytes;
-        d["cached_device_bytes"]=s.cached_device_bytes;d["taskmanager"]=false;
+        d["cached_device_bytes"]=s.cached_device_bytes;
+        d["avoided_upload_bytes"]=s.avoided_upload_bytes;
+        d["preparation_launches"]=s.preparation_launches;
+        d["model_download_bytes"]=s.model_download_bytes;
+        d["cpu_max_density_threads"]=s.cpu_max_density_threads;
+        d["taskmanager"]=false;
         return d;
     });
 }
