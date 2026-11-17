@@ -1,8 +1,8 @@
 {
   "schema": "radia.optuna.cuda-oracle.v1",
-  "optuna_version": "5.0.0",
+  "optuna_version": "5.1.0",
   "numpy_version": "2.5.3",
-  "generator_sha256": "68b26d2ad46e9c7595f6f9ead22894ab3df3fb9c77ee6f96caec3acca993957b",
+  "generator_sha256": "b5e49a9bea5253c8e1a7b55222a3a2a66a3915da475797c5d1248f8ecb0dd7dc",
   "cases": [
     {
       "name": "continuous",

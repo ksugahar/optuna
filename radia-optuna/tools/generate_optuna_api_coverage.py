@@ -1453,9 +1453,9 @@ def build_coverage() -> dict[str, Any]:
     return {
         "schema": "radia.optuna50-api-coverage.v1",
         "upstream_version": UPSTREAM_VERSION,
-        "upstream_inventory": "packages/radia-optuna/oracles/optuna50_public_api.json",
+        "upstream_inventory": INVENTORY_PATH.relative_to(PACKAGE_ROOT).as_posix(),
         "upstream_inventory_sha256": _sha256(INVENTORY_PATH),
-        "upstream_oracle": "packages/radia-optuna/oracles/optuna50_oracle.json",
+        "upstream_oracle": ORACLE_PATH.relative_to(PACKAGE_ROOT).as_posix(),
         "upstream_oracle_sha256": _sha256(ORACLE_PATH),
         "class_oracle_sections": CLASS_ORACLE_SECTIONS,
         "closure_rule": (

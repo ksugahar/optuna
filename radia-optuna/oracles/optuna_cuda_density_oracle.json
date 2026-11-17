@@ -1,6 +1,6 @@
 {
   "schema": "radia.optuna.cuda-density-oracle.v1",
-  "optuna_version": "5.0.0",
+  "optuna_version": "5.1.0",
   "cases": [
     {
       "name": "continuous",

@@ -752,6 +752,7 @@
         "importance",
         "lifecycle_errors",
         "memory_history_tpe",
+        "migration_edges",
         "mixed_tpe_sampler_seed_43",
         "multiobjective_tpe_sampler_seed_41",
         "multivariate_tpe_sampler_seed_67",
@@ -921,6 +922,7 @@
       "matlab_name": "radia.optuna (pruners namespace)",
       "oracle_sections": [
         "base_components",
+        "migration_edges",
         "pruners"
       ],
       "oracle_status": "verified",
@@ -950,6 +952,7 @@
         "grid_sampler_seed_17",
         "lifecycle_errors",
         "memory_history_tpe",
+        "migration_edges",
         "mixed_tpe_sampler_seed_43",
         "multiobjective_tpe_sampler_seed_41",
         "multivariate_tpe_sampler_seed_67",
@@ -2500,6 +2503,7 @@
       "kind": "class",
       "matlab_name": "radia.optuna.PercentilePruner",
       "oracle_sections": [
+        "migration_edges",
         "pruners"
       ],
       "oracle_status": "verified",
@@ -2962,6 +2966,7 @@
       "matlab_name": "radia.optuna.GridSampler",
       "oracle_sections": [
         "grid_sampler_seed_17",
+        "migration_edges",
         "sampler_public_members"
       ],
       "oracle_status": "verified",
@@ -8184,9 +8189,9 @@
   "surface_entry_count": 812,
   "surface_missing_count": 0,
   "surface_present_count": 812,
-  "upstream_inventory": "packages/radia-optuna/oracles/optuna50_public_api.json",
-  "upstream_inventory_sha256": "81CBD4C33ACAC95063994CC8DE8B5BBEF788C40ED23F8ECEAE690C9F0D14B602",
-  "upstream_oracle": "packages/radia-optuna/oracles/optuna50_oracle.json",
-  "upstream_oracle_sha256": "89BB7A0F907EF7158213DECA5D2E2FEB7810B95191C5D96BCB6BFED456183264",
-  "upstream_version": "5.0.0"
+  "upstream_inventory": "oracles/optuna_public_api.json",
+  "upstream_inventory_sha256": "F4B8BD46DD72BCAFC8BD79651F368D90E7D77EEB318AD765F30B2363137BF678",
+  "upstream_oracle": "oracles/optuna_oracle.json",
+  "upstream_oracle_sha256": "C981660F04E0500ED6FA60284C93ECF49DC09ABA9192A88BF66FA8A9EEA0E1A7",
+  "upstream_version": "5.1.0"
 }

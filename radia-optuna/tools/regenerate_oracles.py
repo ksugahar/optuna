@@ -6,6 +6,7 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+import math
 from pathlib import Path
 import platform
 import re
@@ -38,6 +39,24 @@ def sha256(data):
 def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
                     encoding="utf-8", newline="\n")
+
+
+def report_value(value):
+    """Normalize non-finite numbers only in the report, leaving fixtures intact."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return {"nonfinite_float": json.dumps(value)}
+    if isinstance(value, dict):
+        return {key: report_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [report_value(item) for item in value]
+    return value
+
+
+def require_python(pin):
+    required = pin["generation"]["upstream_oracle"]["python"]
+    actual = platform.python_version()
+    if actual != required:
+        raise ValueError(f"Oracle generation requires Python {required}, found {actual}")
 
 
 def changes(before, after, path=()):
@@ -74,7 +93,8 @@ def changes(before, after, path=()):
     elif type(before) is not type(after) or json.dumps(before) != json.dumps(after):
         record = {"path": path, "kind": "value", "before": before, "after": after}
         if type(before) in (int, float) and type(after) in (int, float):
-            record["delta"] = after - before
+            if all(type(value) is int or math.isfinite(value) for value in (before, after)):
+                record["delta"] = after - before
         yield record
 
 
@@ -93,7 +113,7 @@ def file_diff(before, after):
                 isinstance(part, str) and re.search(r"rng|random|seed", part, re.IGNORECASE)
                 for part in change["path"]
             )
-            result["changes"].append(change)
+            result["changes"].append(report_value(change))
     return result
 
 
@@ -119,6 +139,9 @@ def regenerate(args):
     source_sha = git(repo, "rev-parse", "HEAD").decode().strip()
     baseline_sha = git(repo, "rev-parse", "--verify", "--end-of-options",
                        f"{args.baseline_ref}^{{commit}}").decode().strip()
+    committed_pin = git(repo, "show", f"{source_sha}:{(relative / PIN_PATH).as_posix()}")
+    pin = json.loads(committed_pin)
+    require_python(pin)
     out.mkdir(parents=True, exist_ok=False)
     archive = out / "source.zip"
     command = ["git", "-C", str(repo), "archive", "--format=zip", f"--output={archive}",
@@ -127,7 +150,6 @@ def regenerate(args):
     with ZipFile(archive) as snapshot:
         snapshot.extractall(out / "source")
     stage = out / "source" / relative
-    pin = json.loads((stage / PIN_PATH).read_bytes())
     provenance = {
         "reason": args.reason,
         "source_sha": source_sha,
@@ -170,8 +192,11 @@ def regenerate(args):
     torch = f"torch=={main_pins['torch']}"
     main_python = environment("venv-main", [
         optuna, f"optuna-mcp=={args.optuna_mcp}", f"numpy=={main_pins['numpy']}",
+        # Match the SDK reported by the prior MCP oracle. MCP 2 removes FastMCP.
+        f"mcp=={pin['generation']['mcp_oracle']['mcp']}",
         f"scipy=={main_pins['scipy']}", f"cmaes=={main_pins['cmaes']}", torch,
-        "matplotlib!=3.6.0", "plotly>=4.9,<7", "pandas", "redis", "scikit-learn",
+        "matplotlib!=3.6.0", "plotly>=4.9,<7", "pandas", "redis",
+        f"scikit-learn=={main_pins['scikit_learn']}",
         "grpcio", "protobuf>=5.28.1",
     ], torch=torch)
     cuda_python = environment("venv-cuda-fixtures", [optuna, f"numpy=={cuda_pins['numpy']}"])

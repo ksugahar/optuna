@@ -1,24 +1,27 @@
 # CUDA oracle source evidence
 
-The version-neutral names below refer to the same producer and fixture
-bytes. Their embedded historical paths and default output filenames are
-preserved. Run frozen producers only in a separate regeneration directory,
-where the regeneration tool can map those outputs to the current names.
+Run oracle producers in a separate regeneration directory. The regeneration
+tool also maps historical output names when reproducing older commits.
 
-Stored upstream inputs originate in Optuna 5.0.0, not in Radia or MATLAB.
+Stored oracle inputs originate in upstream Optuna.
+The CUDA selection/model and density fixtures below were regenerated with
+Optuna 5.1.0. Python 3.12.10 and NumPy 2.5.3 were used. The structured
+diff against the prior reviewed inputs found only upstream metadata and
+the selection/model producer fingerprint changes. Case inputs, outputs,
+ordering, and recorded RNG consumption matched.
 The six JSON inputs (including MATLAB classification metadata) are wheel
 payloads under `radia_optuna/oracles`. Producers stay source-only and are
 never imported or executed by wheel construction or verification.
 
-The files were relocated without regeneration from `tests/matlab/fixtures/`
-at source `f669767b7d1f0de36e7f590a97717adc0038dfd7`. The stored fixture records
-Optuna 5.0.0 and NumPy 2.5.3. Its six selection cases and fourteen model cases,
+The files were originally relocated from `tests/matlab/fixtures/`
+at source `f669767b7d1f0de36e7f590a97717adc0038dfd7`. The regenerated fixture records
+Optuna 5.1.0 and NumPy 2.5.3. Its six selection cases and fourteen model cases,
 including their order, values and random consumption, are unchanged.
 
 | Input | SHA-256 of Git blob bytes |
 | --- | --- |
-| `generate_optuna50_cuda_oracle.py` | `68b26d2ad46e9c7595f6f9ead22894ab3df3fb9c77ee6f96caec3acca993957b` |
-| `optuna50_cuda_oracle.json` | `e72ccf5cdb84cbd50c61d8b445d1310e02ea1bf9a2eab51baddc2d7eec29e9bf` |
+| `generate_optuna50_cuda_oracle.py` | `b5e49a9bea5253c8e1a7b55222a3a2a66a3915da475797c5d1248f8ecb0dd7dc` |
+| `optuna50_cuda_oracle.json` | `73375a7e511cfccaa4916b4304c433c9f53e3d881df0b10c9dc5a3c29d0fa4d8` |
 
 The producer hash embedded in the fixture uses LF-normalized bytes, matching
 its existing generation procedure. Git pins the fixture itself to LF. The
@@ -31,8 +34,7 @@ isolated environment matching the recorded upstream versions, and preserve the
 old evidence in Git. Record the reason, source identity, full dependency and
 command provenance, raw byte/hash diff, case ordering and numerical differences.
 Review the proposed fixture and contract hash updates independently before
-accepting them. No generation run or new generation provenance is claimed by
-this relocation.
+accepting them. Keep the source, environment, and diff for each generation.
 
 ## Density evidence
 
@@ -42,10 +44,10 @@ producer (which writes the fixture at module import).
 
 | Input | SHA-256 of Git blob bytes |
 | --- | --- |
-| `generate_optuna_cuda_density_oracle.py` | `434e0ed2aacb6dec0db5d9e99a99f9a05cf0d75fb02d04e2e9310fc94bfe654f` |
-| `optuna_cuda_density_oracle.json` | `04d11672c5dfd73f7dc399fc237d2f8e1c8b01c2bff06cb1a7ed5085f807dbfc` |
+| `generate_optuna_cuda_density_oracle.py` | `3cf68642bd20dd9d1eafe32f659525689cdc26843f7fbbc83a1bb2f1e5e49b36` |
+| `optuna_cuda_density_oracle.json` | `167f8bef1d1088ab5c55c6bb2845c97e6084a496e665d672e9e877b20697545b` |
 
-This stored schema records Optuna 5.0.0 and cases, but no NumPy version or
+This stored schema records Optuna 5.1.0 and cases, but no NumPy version or
 embedded producer hash. The companion producer is identified by its Git bytes;
 no missing generation metadata is inferred from the other oracle or invented.
 The same explicit review and regeneration policy above applies.
@@ -55,41 +57,49 @@ The same explicit review and regeneration policy above applies.
 `generate_optuna_mcp_oracle.py` and `optuna_mcp_oracle.json` are
 inputs moved unchanged from commit
 `abad8cc4c79faea5e068f3c78ab01b729c407d5c`. The stored fixture records
-Optuna 5.0.0, optuna-mcp 0.2.0 and stdio transport. It has no embedded
+Optuna 5.1.0, optuna-mcp 0.2.0 and stdio transport.
+Regeneration with the prior MCP SDK (1.27.0) changed only the Optuna version. It has no embedded
 producer fingerprint; the source identity contract records the reviewed
 producer and fixture bytes without inventing generation metadata. The
 producer must not be executed during relocation or ordinary source checks.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna_mcp_oracle.py` | `7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb` |
-| `optuna_mcp_oracle.json` | `890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa` |
+| `generate_optuna_mcp_oracle.py` | `b1ecc55ace63671b153fceaa5b90f0a3cbf3b25f855ce9f5de758294ab399ba6` |
+| `optuna_mcp_oracle.json` | `894dff133d12e2f2e13058b17bfa4dd5e81aadf8c36668042e0703b0d7f3cd0e` |
 
 ## Public API inventory
 
-The Optuna 5.0.0 public inventory and its producer were moved unchanged
+The prior Optuna 5.0.0 public inventory and its producer were moved unchanged
 from commit `dfe22b6ceb6dc0a55b902c4a80180176dfcfa814`. The stored inventory has no embedded
 producer hash. The source contract fixes the reviewed identities below;
-relocation never runs the producer or changes exported names/defaults/order.
+relocation did not run the producer. The 5.1.0 regeneration changed only the
+upstream version and the NSGA-III reference-point input type in the inventory.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna_api_inventory.py` | `351d63e534dcca09fc9b47493e4942cd728b59e32cea99c6694ca64d946f7e00` |
-| `optuna_public_api.json` | `81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602` |
+| `generate_optuna_api_inventory.py` | `bcc580d912b0e5f724d8e9ece58d48674f267a208a792ffe535fabdce81ece12` |
+| `optuna_public_api.json` | `f4b8bd46dd72bcafc8bd79651f368d90e7d77eeb318ad765f30b2363137bf678` |
 
 ## Main upstream behavior oracle
 
-The producer and fixture were moved unchanged from commit
-`82341f805ce35e02556a75db9ef174db9d5ceff7`. The fixture retains its recorded Optuna 5.0.0,
-NumPy 2.5.2 and other generation versions. It has no embedded generator hash.
-The identity contract records reviewed source bytes; historical result records
-keep their original command paths as provenance rather than live locators.
-No producer execution or expectation regeneration is part of this move.
+The original producer and fixture were moved unchanged from commit
+`82341f805ce35e02556a75db9ef174db9d5ceff7`. The 5.1.0 fixture was regenerated
+on hosted Windows with Python 3.12.10,
+NumPy 2.5.2, SciPy 1.17.1 and PyTorch 2.11.0+cu126. The same job ran the
+5.0.0 producer with the same dependencies. The matched comparison found only
+the upstream version, the artifact removal contract and the NSGA-III
+reference-point annotation changed. The stored-to-matched 5.0.0 comparison
+accounts for the floating-point and importance differences in the new fixture.
+The added compatibility cases and scikit-learn version were generated in
+hosted run 44033529270. Existing cases retain the values generated with
+Optuna 5.1.0 in hosted run 44029596220, preserving the existing numerical
+expectations across runner differences. The fixture has no embedded generator hash.
 
 | Input | Git blob SHA256 |
 | --- | --- |
-| `generate_optuna_oracle.py` | `4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac` |
-| `optuna_oracle.json` | `89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264` |
+| `generate_optuna_oracle.py` | `956a6c58750a89e732cfee6fe721fe924714424c35f33ce51cfe8a247e5bc109` |
+| `optuna_oracle.json` | `c981660f04e0500ed6fa60284c93ecf49dc09aba9192a88bf66fa8a9eea0e1a7` |
 
 ## MATLAB test classification
 

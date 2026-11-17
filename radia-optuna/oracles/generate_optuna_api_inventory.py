@@ -1,4 +1,4 @@
-"""Inventory the pinned Optuna 5.0.0 public API for MATLAB closure work."""
+"""Inventory the pinned Optuna 5.1.0 public API for MATLAB closure work."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import Any
 import optuna
 
 
-EXPECTED_VERSION = "5.0.0"
+EXPECTED_VERSION = "5.1.0"
 MODULE_NAMES = [
     "optuna",
     "optuna.artifacts",
@@ -197,7 +197,7 @@ def build_inventory() -> dict[str, object]:
 
 
 def main() -> None:
-    destination = Path(__file__).with_name("optuna50_public_api.json")
+    destination = Path(__file__).with_name("optuna_public_api.json")
     destination.write_text(
         json.dumps(build_inventory(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

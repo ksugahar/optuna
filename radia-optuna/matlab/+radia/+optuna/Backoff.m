@@ -38,10 +38,10 @@ classdef Backoff < handle
         end
 
         function remove(obj,artifact_id)
-            % Optuna 5 calls remove on every retry slot even after success.
             for index=0:obj.MaxRetries-1
                 try
                     obj.Backend.remove(artifact_id);
+                    return
                 catch exception
                     if string(exception.identifier)=="radia:optuna:ArtifactNotFound" || ...
                             index==obj.MaxRetries-1

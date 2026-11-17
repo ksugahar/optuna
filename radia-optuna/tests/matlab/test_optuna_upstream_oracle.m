@@ -796,12 +796,47 @@ verifyError(testCase,@()trial.suggest_categorical("kind",["a","c"]), ...
     "radia:optuna:IncompatibleDistribution");
 end
 
+function testMigrationEdgeCasesMatchUpstream(testCase)
+expected=testCase.TestData.Oracle.migration_edges;
+grid=radia.optuna.Study(Sampler=radia.optuna.GridSampler(struct("x",0),Seed=7),AutoSave=false);
+grid.enqueue_trial(struct("x",1));
+grid.optimize(@(trial)trial.suggest_int("x",0,1),3);
+verifyEqualWithPrecision(testCase,reshape(grid.TrialTable.Value,1,[]), ...
+    reshape(double(expected.grid_with_enqueued_first),1,[]));
+
+integers=radia.optuna.Study(AutoSave=false);
+integers.enqueue_trial(struct("x",int64(1000000000)));
+integers.enqueue_trial(struct("x",int64(1000000001)),SkipIfExists=true);
+verifyEqualWithPrecision(testCase,height(integers.TrialTable), ...
+    double(expected.distinct_integer_queue_count));
+
+percentile=radia.optuna.Study(Pruner=radia.optuna.PercentilePruner(50,NStartupTrials=0),AutoSave=false);
+historical=percentile.ask();
+historical.report(NaN,0);
+percentile.tell(historical,1);
+candidate=percentile.ask();
+candidate.report(1,0);
+nanCandidate=percentile.ask();
+nanCandidate.report(NaN,0);
+verifyFalse(testCase,logical(expected.percentile_runtime_warning));
+verifyWarningFree(testCase,@()candidate.should_prune());
+verifyWarningFree(testCase,@()nanCandidate.should_prune());
+verifyEqualWithPrecision(testCase,candidate.should_prune(), ...
+    logical(expected.percentile_all_nan_reference_prunes));
+verifyEqualWithPrecision(testCase,nanCandidate.should_prune(), ...
+    logical(expected.percentile_all_nan_candidate_prunes));
+end
+
 function testStudyManagementMatchesUpstream(testCase)
 expected=testCase.TestData.Oracle.study_management;
 source=string(tempname("C:\temp"))+".h5";
 target=string(tempname("C:\temp"))+".h5";
 multiTarget=string(tempname("C:\temp"))+".h5";
-cleanup=onCleanup(@()cleanupStudyFiles([source,target,multiTarget]));
+emptyTarget=string(tempname("C:\temp"))+".h5";
+defaultTarget=string(tempname("C:\temp"))+".h5";
+constraintTarget=string(tempname("C:\temp"))+".h5";
+cleanup=onCleanup(@()cleanupStudyFiles( ...
+    [source,target,multiTarget,emptyTarget,defaultTarget,constraintTarget]));
 study=radia.optuna.create_study(study_name="alpha", ...
     direction="maximize",storage=source);
 study.add_trial(radia.optuna.createTrial(Value=1.25, ...
@@ -830,6 +865,29 @@ snapshot=copied.best_trial();
 verifyEqualWithPrecision(testCase,snapshot.Params.x,double(expected.copied.param_x));
 verifyEqualWithPrecision(testCase,string(snapshot.UserAttrs.origin), ...
     string(expected.copied.user_origin));
+
+radia.optuna.copy_study(from_study_name="alpha", ...
+    from_storage=source,to_storage=emptyTarget,to_study_name="");
+verifyEqualWithPrecision(testCase,radia.optuna.get_all_study_names(emptyTarget), ...
+    string(expected.explicit_empty_copy_name));
+radia.optuna.copyStudy(from_study_name="alpha", ...
+    from_storage=source,to_storage=defaultTarget);
+verifyEqualWithPrecision(testCase,radia.optuna.get_all_study_names(defaultTarget), ...
+    string(expected.omitted_copy_name));
+
+constrained=radia.optuna.create_study(storage=constraintTarget);
+infeasible=constrained.ask();
+infeasible.set_constraint("limit",1);
+constrained.tell(infeasible,0);
+beforeFeasible=radia.optuna.get_all_study_summaries(constraintTarget);
+verifyEqualWithPrecision(testCase,~isempty(beforeFeasible.best_trial), ...
+    logical(expected.summary_has_best_with_only_infeasible));
+feasible=constrained.ask();
+feasible.set_constraint("limit",-1);
+constrained.tell(feasible,1);
+afterFeasible=radia.optuna.get_all_study_summaries(constraintTarget);
+verifyEqualWithPrecision(testCase,afterFeasible.best_trial.Value, ...
+    double(expected.summary_feasible_best_value));
 
 summary=radia.optuna.get_all_study_summaries(target);
 verifyClass(testCase,summary,"radia.optuna.StudySummary");
@@ -1238,8 +1296,9 @@ backoff=radia.optuna.Backoff(store,MaxRetries=2, ...
 backoff.write("backoff",uint8(expected.backoff_body));
 verifyEqualWithPrecision(testCase,backoff.open_reader("backoff"), ...
     reshape(uint8(expected.backoff_body),[],1));
-verifyEqualWithPrecision(testCase,string(expected.backoff_remove_error),"ArtifactNotFound");
-verifyError(testCase,@()backoff.remove("backoff"), ...
+verifyWarningFree(testCase,@()backoff.remove("backoff"));
+verifyEqualWithPrecision(testCase,string(expected.backoff_missing_error),"ArtifactNotFound");
+verifyError(testCase,@()backoff.open_reader("backoff"), ...
     "radia:optuna:ArtifactNotFound");
 
 botoClient=struct( ...

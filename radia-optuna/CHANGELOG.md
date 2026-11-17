@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.1.0 (unreleased)
+
+- Align the distribution version with upstream Optuna.
+- Keep the distribution name `radia-optuna` and publish from the Optuna fork.
+- Match Optuna 5.1.0 artifact removal by returning as soon as the backend removes the artifact.
+
 ## 0.5.0 (2026-11-01)
 
 - Replace the mexcuda build route with one nvcc-compiled CUDA object in a

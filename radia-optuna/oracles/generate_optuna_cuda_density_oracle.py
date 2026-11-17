@@ -5,7 +5,7 @@ import numpy as np
 import optuna
 from optuna.samplers._tpe import probability_distributions as p
 
-assert optuna.__version__ == "5.0.0"
+assert optuna.__version__ == "5.1.0"
 weights = np.array([0.0, 0.3, 0.7])
 mu, sigma = np.array([-0.7, 0.2, 1.1]), np.array([0.4, 0.8, 1.3])
 cases = []

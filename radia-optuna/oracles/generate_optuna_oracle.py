@@ -1,4 +1,4 @@
-"""Generate deterministic MATLAB parity fixtures from upstream Optuna 5.0.0."""
+"""Generate deterministic MATLAB parity fixtures from upstream Optuna 5.1.0."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import optuna.terminator
 import scipy
 from optuna.trial import TrialState
 
-EXPECTED_VERSION = "5.0.0"
+EXPECTED_VERSION = "5.1.0"
 
 CONSTRUCTOR_MODULE_NAMES = [
     "optuna",
@@ -636,11 +636,14 @@ def _artifact_contract() -> dict[str, object]:
         )
         backoff_id = "backoff"
         backoff.write(backoff_id, BytesIO(b"retry-body"))
-        backoff_body = backoff.open_reader(backoff_id).read()
+        with backoff.open_reader(backoff_id) as reader:
+            backoff_body = reader.read()
+        backoff.remove(backoff_id)
         try:
-            backoff.remove(backoff_id)
-        except Exception as error:  # noqa: BLE001 - Optuna 5.0 retry-loop behavior.
-            backoff_remove_error = type(error).__name__
+            with backoff.open_reader(backoff_id):
+                raise RuntimeError("Backoff.remove returned without removing the artifact.")
+        except optuna.artifacts.exceptions.ArtifactNotFound as error:
+            backoff_missing_error = type(error).__name__
 
     boto_client = BotoClient()
     with patch("optuna.artifacts._boto3._imports.check", return_value=None):
@@ -661,7 +664,7 @@ def _artifact_contract() -> dict[str, object]:
     return {
         "artifact_id": artifact_id,
         "backoff_body": list(backoff_body),
-        "backoff_remove_error": backoff_remove_error,
+        "backoff_missing_error": backoff_missing_error,
         "boto_open": list(boto_open),
         "boto_written": list(boto_written),
         "downloaded": list(downloaded),
@@ -770,7 +773,7 @@ def _sampler_seed_default_contract() -> dict[str, object]:
     for name in constructors:
         parameter = inspect.signature(getattr(optuna.samplers, name)).parameters["seed"]
         if parameter.default is not None:
-            raise RuntimeError(f"Optuna 5.0.0 {name}.seed no longer defaults to None.")
+            raise RuntimeError(f"Optuna 5.1.0 {name}.seed no longer defaults to None.")
         defaults[name] = {
             "parameter": parameter.name,
             "default_is_none": True,
@@ -2779,6 +2782,39 @@ def _frozen_trial_contract() -> dict[str, object]:
     }
 
 
+def _migration_edge_contract() -> dict[str, object]:
+    grid = optuna.create_study(sampler=optuna.samplers.GridSampler({"x": [0]}, seed=7))
+    grid.enqueue_trial({"x": 1})
+    grid.optimize(lambda trial: trial.suggest_int("x", 0, 1), n_trials=3)
+
+    integer_queue = optuna.create_study()
+    integer_queue.enqueue_trial({"x": 1_000_000_000})
+    integer_queue.enqueue_trial({"x": 1_000_000_001}, skip_if_exists=True)
+
+    percentile = optuna.create_study(
+        pruner=optuna.pruners.PercentilePruner(50.0, n_startup_trials=0)
+    )
+    historical = percentile.ask()
+    historical.report(float("nan"), 0)
+    percentile.tell(historical, 1.0)
+    candidate = percentile.ask()
+    candidate.report(1.0, 0)
+    nan_candidate = percentile.ask()
+    nan_candidate.report(float("nan"), 0)
+    with warnings.catch_warnings(record=True) as messages:
+        warnings.simplefilter("always")
+        prune_present = candidate.should_prune()
+        prune_nan = nan_candidate.should_prune()
+
+    return {
+        "grid_with_enqueued_first": [trial.params["x"] for trial in grid.trials],
+        "distinct_integer_queue_count": len(integer_queue.trials),
+        "percentile_all_nan_reference_prunes": prune_present,
+        "percentile_all_nan_candidate_prunes": prune_nan,
+        "percentile_runtime_warning": any(issubclass(msg.category, RuntimeWarning) for msg in messages),
+    }
+
+
 def _study_management_contract() -> dict[str, object]:
     source_storage = optuna.storages.InMemoryStorage()
     target_storage = optuna.storages.InMemoryStorage()
@@ -2807,10 +2843,34 @@ def _study_management_contract() -> dict[str, object]:
         to_study_name="beta",
     )
     copied = optuna.load_study(study_name="beta", storage=target_storage)
+    unnamed_storage = optuna.storages.InMemoryStorage()
+    optuna.copy_study(
+        from_study_name="alpha",
+        from_storage=source_storage,
+        to_storage=unnamed_storage,
+        to_study_name="",
+    )
+    omitted_storage = optuna.storages.InMemoryStorage()
+    optuna.copy_study(
+        from_study_name="alpha",
+        from_storage=source_storage,
+        to_storage=omitted_storage,
+    )
     summary = optuna.get_all_study_summaries(target_storage)[0]
     summary_without_best = optuna.get_all_study_summaries(
         target_storage, include_best_trial=False
     )[0]
+    constrained_storage = optuna.storages.InMemoryStorage()
+    constrained = optuna.create_study(storage=constrained_storage)
+    infeasible = constrained.ask()
+    infeasible.set_constraint("limit", 1.0)
+    constrained.tell(infeasible, 0.0)
+    before_feasible = optuna.get_all_study_summaries(constrained_storage)[0]
+    feasible = constrained.ask()
+    feasible.set_constraint("limit", -1.0)
+    constrained.tell(feasible, 1.0)
+    after_feasible = optuna.get_all_study_summaries(constrained_storage)[0]
+
     multi_storage = optuna.storages.InMemoryStorage()
     optuna.create_study(
         study_name="multi",
@@ -2829,6 +2889,10 @@ def _study_management_contract() -> dict[str, object]:
     names_after_delete = optuna.get_all_study_names(source_storage)
     return {
         "loaded": loaded_result,
+        "explicit_empty_copy_name": optuna.get_all_study_names(unnamed_storage)[0],
+        "omitted_copy_name": optuna.get_all_study_names(omitted_storage)[0],
+        "summary_has_best_with_only_infeasible": before_feasible.best_trial is not None,
+        "summary_feasible_best_value": float(after_feasible.best_trial.value),
         "copied": {
             "name": copied.study_name,
             "direction": copied.direction.name,
@@ -3568,6 +3632,7 @@ def build_oracle() -> dict[str, object]:
         "python_version": sys.version.split()[0],
         "torch_version": importlib.metadata.version("torch"),
         "cmaes_version": importlib.metadata.version("cmaes"),
+        "scikit_learn_version": importlib.metadata.version("scikit-learn"),
         "constructor_defaults": _constructor_default_contract(),
         "defaults": {
             "anonymous_prefix": "no-name-",
@@ -3596,6 +3661,7 @@ def build_oracle() -> dict[str, object]:
         "fixed_trial": _fixed_trial_contract(),
         "frozen_trial": _frozen_trial_contract(),
         "study_management": _study_management_contract(),
+        "migration_edges": _migration_edge_contract(),
         "trials_dataframe": _trials_dataframe_contract(),
         "importance": _importance_contract(),
         "integration": _integration_contract(),
@@ -3653,7 +3719,7 @@ def build_oracle() -> dict[str, object]:
 
 
 def main() -> None:
-    destination = Path(__file__).with_name("optuna50_oracle.json")
+    destination = Path(__file__).with_name("optuna_oracle.json")
     destination.write_text(
         json.dumps(build_oracle(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tomllib
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +52,42 @@ def test_upstream_pin_matches_compatibility_metadata():
             assert fixture[f"{dependency}_version"] == version, (name, dependency)
     mcp = json.loads((ROOT / "oracles/optuna_mcp_oracle.json").read_text(encoding="utf-8"))
     assert mcp["optuna_mcp_version"] == PIN["optuna_mcp"]
+    assert mcp["mcp_server_reported_version"] == PIN["generation"]["mcp_oracle"]["mcp"]
+
+
+def release_pin(version):
+    assert re.fullmatch(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2,3}", version), version
+    return ".".join(version.split(".")[:3])
+
+
+def require_release_pin(version, upstream):
+    assert release_pin(version) == upstream, (version, upstream)
+
+
+def test_release_version_follows_upstream():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    version = project["project"]["version"]
+    require_release_pin(version, PIN["optuna"])
+    for name in ("manifest.json", "evidence_manifest.json"):
+        metadata = json.loads((ROOT / "src/radia_optuna" / name).read_bytes())
+        assert metadata["version"] == version, name
+        assert metadata["oracle_version"] == release_pin(version), name
+    actual = subprocess.check_output(
+        [sys.executable, "-IB", "-c",
+         "import sys; sys.path.insert(0, sys.argv[1]); import radia_optuna; print(radia_optuna.__version__)",
+         str(ROOT / "src")],
+        text=True,
+    ).strip()
+    assert actual == version
+
+
+def test_release_version_rejects_mismatched_pin_and_noninteger_revision():
+    hypothetical_wrong_pin = ".".join([*PIN["optuna"].split(".")[:2], "999"])
+    with pytest.raises(AssertionError):
+        require_release_pin(hypothetical_wrong_pin, PIN["optuna"])
+    require_release_pin(f'{PIN["optuna"]}.1', PIN["optuna"])
+    with pytest.raises(AssertionError):
+        release_pin(f'{PIN["optuna"]}.post1')
 
 
 def test_no_active_upstream_optuna_pin_literals():
@@ -71,6 +110,11 @@ def test_no_active_upstream_optuna_pin_literals():
         if path.suffix not in {".md", ".json", ".py", ".m", ".yml", ".yaml", ".ps1", ".toml", ".cpp", ".cu", ".hpp"}:
             continue
         for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if file == "src/radia_optuna/__init__.py" and re.fullmatch(
+                r'__version__ = "[0-9.]+"', line
+            ):
+                # Package release metadata is checked separately against the upstream pin.
+                continue
             line = line.replace(r"\\.", ".").replace(r"\.", ".")
             mcp = re.search(r"optuna[-_]mcp.{0,12}" + re.escape(PIN["optuna_mcp"]), line, re.I)
             if PIN["optuna"] in line or mcp:

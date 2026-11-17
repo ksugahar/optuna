@@ -13,7 +13,7 @@
       100,
       121
     ],
-    "backoff_remove_error": "ArtifactNotFound",
+    "backoff_missing_error": "ArtifactNotFound",
     "boto_open": [
       99,
       108,
@@ -2077,7 +2077,7 @@
             "kind": "KEYWORD_ONLY"
           },
           "reference_points": {
-            "annotation": "np.ndarray | None",
+            "annotation": "Sequence[Sequence[float]] | np.ndarray | None",
             "default_repr": "None",
             "kind": "KEYWORD_ONLY"
           },
@@ -3406,16 +3406,16 @@
       "x": 0.12837022912384932
     },
     {
-      "constraint": -0.0041125025178489205,
-      "x": 0.09588749748215109
+      "constraint": -0.004112502323819239,
+      "x": 0.09588749767618077
     },
     {
-      "constraint": -0.0005991623478335539,
-      "x": 0.09940083765216645
+      "constraint": -0.0005991623401006285,
+      "x": 0.09940083765989938
     },
     {
-      "constraint": -0.00022320433289371722,
-      "x": 0.09977679566710629
+      "constraint": -0.00022320433427971964,
+      "x": 0.09977679566572029
     }
   ],
   "gp_sampler_seed_53": [
@@ -3472,12 +3472,12 @@
     {
       "mesh": 1,
       "mode": "A",
-      "x": -0.09620176998221108
+      "x": -0.09620176998240071
     },
     {
       "mesh": 1,
       "mode": "A",
-      "x": 0.01880541051307194
+      "x": 0.018805410512273246
     }
   ],
   "grid_sampler_seed_17": [
@@ -3574,9 +3574,9 @@
           "y"
         ],
         "values": [
-          0.9024102828191107,
-          0.02711321971744135,
-          0.021232519686525488
+          0.9039295684322206,
+          0.026467401932519445,
+          0.021031766350529772
         ]
       },
       "fanova_target": {
@@ -3586,9 +3586,9 @@
           "mode"
         ],
         "values": [
-          0.9842438902427975,
-          0.0026582129805842194,
-          0.0017959568423238687
+          0.9842527929418491,
+          0.002431673903147027,
+          0.0018412554494775394
         ]
       },
       "mdi": {
@@ -3598,9 +3598,9 @@
           "y"
         ],
         "values": [
-          0.9209049544690037,
-          0.042415640574491736,
-          0.036679404956504624
+          0.9237721409625071,
+          0.04254973742311419,
+          0.033678121614378616
         ]
       },
       "ped_anova": {
@@ -3763,9 +3763,9 @@
       }
     ],
     "values": [
-      0.9491502149090534,
-      0.028517536658926076,
-      0.022332248432020623
+      0.9500759579250926,
+      0.0278185857869881,
+      0.022105456287919403
     ]
   },
   "integration": {
@@ -7176,6 +7176,16 @@
     ],
     "seed": 37
   },
+  "migration_edges": {
+    "distinct_integer_queue_count": 2,
+    "grid_with_enqueued_first": [
+      1,
+      0
+    ],
+    "percentile_all_nan_candidate_prunes": true,
+    "percentile_all_nan_reference_prunes": false,
+    "percentile_runtime_warning": false
+  },
   "mixed_tpe_sampler_seed_43": [
     {
       "log_mesh": 2,
@@ -7358,7 +7368,7 @@
       "y": 0.26335170760550936
     },
     {
-      "x": -0.682671926917412,
+      "x": -0.6826719269174117,
       "y": -0.5001153468546071
     },
     {
@@ -9051,7 +9061,7 @@
     ]
   },
   "numpy_version": "2.5.2",
-  "optuna_version": "5.0.0",
+  "optuna_version": "5.1.0",
   "partial_fixed_sampler_seed_61": [
     {
       "x": 0.25,
@@ -9669,6 +9679,7 @@
     "semantic": "fresh nondeterministic entropy per unseeded sampler instance"
   },
   "schema": "radia.test.optuna-upstream-oracle.v1",
+  "scikit_learn_version": "1.9.1",
   "scipy_version": "1.17.1",
   "scrambled_qmc_sampler_seed_47": {
     "halton": [
@@ -9917,6 +9928,7 @@
       "trial_count": 1,
       "user_origin": "oracle"
     },
+    "explicit_empty_copy_name": "",
     "loaded": {
       "best_value": 1.25,
       "direction": "MAXIMIZE",
@@ -9934,6 +9946,7 @@
     "names_before_delete": [
       "alpha"
     ],
+    "omitted_copy_name": "alpha",
     "summary": {
       "best_value": 1.25,
       "direction": "MAXIMIZE",
@@ -9944,7 +9957,9 @@
       "trial_count": 1,
       "type": "StudySummary",
       "without_best_has_best": false
-    }
+    },
+    "summary_feasible_best_value": 1.0,
+    "summary_has_best_with_only_infeasible": false
   },
   "study_summary": {
     "direction_names": [
@@ -9983,11 +9998,11 @@
     "advanced": {
       "results": {
         "emmr": {
-          "value": 0.4712573846713926,
+          "value": 0.4712573846713944,
           "warning": "ExperimentalWarning"
         },
         "regret_bound": {
-          "value": 0.07502874449977133,
+          "value": 0.07502874449977046,
           "warning": "ExperimentalWarning"
         }
       },
@@ -10704,11 +10719,11 @@
     0.15419354993933795,
     -0.5349217561978189,
     0.575016242209589,
-    1.152802513226696,
+    1.1528025132266955,
     0.5242765355300656,
     0.15240220977261149,
     -1.2123891190894331,
-    1.7034246173601053,
+    1.7034246173601049,
     -0.393059031788796,
     0.1963061227290927,
     -0.026546735582476444,
