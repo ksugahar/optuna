@@ -72,22 +72,12 @@ Follow the regeneration rules in `oracles/README.md`. Regeneration is an
 explicit, reviewed change that needs approval for expected-value changes. It
 is never a test setup step. Preserve the old evidence in Git.
 
-First update each producer's version guard and its input/output paths for
-the new pin. Then run each producer in the isolated venv. The current
-producers are:
-
-| Producer | Fixture |
-| --- | --- |
-| `oracles/generate_optuna_oracle.py` | main upstream behavior oracle |
-| `oracles/generate_optuna50_cuda_oracle.py` | CUDA selection/model oracle (embeds its own LF-normalized hash) |
-| `oracles/generate_optuna_cuda_density_oracle.py` | density oracle (writes the fixture at module import) |
-| `oracles/generate_optuna_mcp_oracle.py` | MCP oracle (needs the matching optuna-mcp) |
-| `oracles/generate_optuna_api_inventory.py` | public API inventory |
-
-After the step 2 rename, use the version-neutral names. Then rebuild the
-derived files: the API coverage (`tools/generate_optuna_api_coverage.py`, or
-its renamed successor) and the test manifest
-(`python tools/generate_optuna_test_manifest.py --test-directory tests/matlab --output <file>`).
+Use the scratch-only command in `oracles/README.md` to run all five producers
+and the two derived generators in isolated environments. Review
+`provenance.json` and `diff.json` before adopting any output. If the producers
+have been updated in the migration commit, use `--baseline-ref` to compare
+against the prior reviewed fixture tree. Confirm the CUDA selection/model
+fixture's embedded fingerprint against the exact producer in the proposal.
 
 For every fixture, record the reason, the source identity, the full dependency
 and command provenance, the raw byte and hash diff, the case ordering and the
@@ -104,7 +94,10 @@ package shares is implemented to match the new oracle.
 
 ## 5. Set the release version
 
-Bump the package version and update the CHANGELOG now, before qualification.
+Set the package version and update the CHANGELOG before qualification. An
+upstream migration uses the pinned Optuna release version. A Radia-only
+release on that pin increments the fourth release segment, for example
+`5.1.0.1`.
 The release workflow binds the `pyproject.toml` version, the
 `radia-optuna-v<version>` tag, the successful main CI run and the wheel's
 native receipt to one source SHA. A version bump after qualification would
