@@ -96,8 +96,7 @@ package shares is implemented to match the new oracle.
 
 Set the package version and update the CHANGELOG before qualification. An
 upstream migration uses the pinned Optuna release version. A Radia-only
-release on that pin increments the fourth release segment, for example
-`5.1.0.1`.
+release on that pin increments the fourth release segment (`major.minor.patch.revision`).
 The release workflow binds the `pyproject.toml` version, the
 `radia-optuna-v<version>` tag, the successful main CI run and the wheel's
 native receipt to one source SHA. A version bump after qualification would
