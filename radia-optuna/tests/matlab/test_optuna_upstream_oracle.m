@@ -100,7 +100,7 @@ entries=string(strsplit(path,pathsep));
 testCase.TestData.RemovePath=~any(strcmpi(entries,string(matlabDirectory)));
 if testCase.TestData.RemovePath, addpath(matlabDirectory); end
 testCase.TestData.MatlabDirectory=matlabDirectory;
-fixture=fullfile(root,"oracles","optuna50_oracle.json");
+fixture=fullfile(root,"oracles","optuna_oracle.json");
 testCase.TestData.Oracle=jsondecode(fileread(fixture));
 optunaPrecision('begin',testCase.TestData.Oracle);
 end
@@ -157,7 +157,7 @@ for index=1:numel(entries)
         string(entries(index).test);
     verifyTrue(testCase,ismember(string(entries(index).classification),allowed));
     if string(entries(index).classification)=="upstream-python"
-        expectedOracle="optuna50_oracle.json";
+        expectedOracle="optuna_oracle.json";
         if string(entries(index).file)=="test_optuna_cuda.m" && ...
                 string(entries(index).test)=="testDensityMatchesUpstream"
             expectedOracle="optuna_cuda_density_oracle.json";
@@ -170,7 +170,7 @@ for index=1:numel(entries)
             expectedOracle);
     elseif string(entries(index).classification)=="upstream-mcp"
         verifyEqualWithPrecision(testCase,string(entries(index).oracle), ...
-            "optuna50_mcp_oracle.json");
+            "optuna_mcp_oracle.json");
     else
         verifyTrue(testCase,isempty(entries(index).oracle));
         verifyNotEmpty(testCase,string(entries(index).scope));
@@ -183,7 +183,7 @@ end
 function testPublicAPIInventoryReportsEvidenceClosureHonestly(testCase)
 root=fileparts(fileparts(fileparts(mfilename("fullpath"))));
 coverage=jsondecode(fileread(fullfile( ...
-    root,"matlab","optuna50_api_coverage.json")));
+    root,"matlab","optuna_api_coverage.json")));
 verifyEqualWithPrecision(testCase,string(coverage.schema), ...
     "radia.optuna50-api-coverage.v1");
 verifyEqualWithPrecision(testCase,string(coverage.upstream_version),radia.optuna.version());

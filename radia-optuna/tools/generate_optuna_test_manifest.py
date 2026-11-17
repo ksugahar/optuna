@@ -91,10 +91,10 @@ def build_manifest(test_directory: Path) -> dict[str, object]:
             if test_name == "testOraclePolicyManifestIsComplete":
                 effective_classification = "matlab-integration"
             if effective_classification == "upstream-python":
-                oracle = "optuna50_oracle.json"
+                oracle = "optuna_oracle.json"
                 scope = f"shared Optuna {UPSTREAM_VERSION} behavior"
             elif effective_classification == "upstream-mcp":
-                oracle = "optuna50_mcp_oracle.json"
+                oracle = "optuna_mcp_oracle.json"
                 scope = "official Optuna MCP behavior"
             else:
                 oracle = None

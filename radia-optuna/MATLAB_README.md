@@ -36,7 +36,7 @@ and public class members. Of these, 749 are mapped from executable upstream
 oracle evidence and 63 wider Python-language/replaced/bridged entries are
 explicit assertions. The required shared MATLAB scope is 401/401
 evidence-mapped with no asserted required entry.
-See `optuna_upstream_compatibility.json` and `optuna50_api_coverage.json` for
+See `optuna_upstream_compatibility.json` and `optuna_api_coverage.json` for
 the exact machine-readable boundary. The pinned Optuna release is the common algorithmic
 source of truth, while native MATLAB/MEX vectorization may execute that
 algorithm without Python. Unified `TPESampler` owns both scalar and

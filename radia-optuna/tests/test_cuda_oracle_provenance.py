@@ -30,19 +30,19 @@ import pytest
             False, id="density",
         ),
         pytest.param(
-            "generate_optuna50_mcp_oracle.py", "optuna50_mcp_oracle.json",
+            "generate_optuna_mcp_oracle.py", "optuna_mcp_oracle.json",
             "7d6a08a91e8fe21a438660e6f359bcfa468578efd9c7579c6e592dbec56dd6cb",
             "890bd0c25e6842427db8c55a6c1cda4135afdacb03ea2d53b5c4785aa15aa8aa",
             False, id="mcp50",
         ),
         pytest.param(
-            "generate_optuna50_api_inventory.py", "optuna50_public_api.json",
+            "generate_optuna_api_inventory.py", "optuna_public_api.json",
             "351d63e534dcca09fc9b47493e4942cd728b59e32cea99c6694ca64d946f7e00",
             "81cbd4c33acac95063994cc8de8b5bbef788c40ed23f8eceae690c9f0d14b602",
             False, id="api50",
         ),
         pytest.param(
-            "generate_optuna50_oracle.py", "optuna50_oracle.json",
+            "generate_optuna_oracle.py", "optuna_oracle.json",
             "4524b64b6f9bfac45bd0abd24fd6633ee50de7780920cb942341dcd6613dfdac",
             "89bb7a0f907ef7158213deca5d2e2feb7810b95191c5d96bcb6bfed456183264",
             False, id="upstream50",
