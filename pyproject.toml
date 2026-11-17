@@ -166,6 +166,7 @@ exclude = [
   "build",
   "dist",
   "docs",
+  "radia-optuna",
   "optuna/storages/_grpc/auto_generated",
 ]
 
