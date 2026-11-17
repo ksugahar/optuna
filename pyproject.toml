@@ -85,6 +85,8 @@ checking = [
   "mypy_boto3_s3",
   "ruff",
   "scipy-stubs; python_version>='3.10'",
+  # Optuna 5.0's RDB models still use the pre-2.1 SQLAlchemy typing surface.
+  "sqlalchemy<2.1",
   "types-PyYAML",
   "types-redis",
   "types-setuptools",
@@ -166,6 +168,7 @@ exclude = [
   "build",
   "dist",
   "docs",
+  "radia-optuna",
   "optuna/storages/_grpc/auto_generated",
 ]
 
@@ -212,7 +215,7 @@ extra_checks = true
 no_implicit_reexport = true
 
 ignore_missing_imports = true
-exclude = [".venv", "venv", "build", "docs", "tutorial", "optuna/storages/_rdb/alembic", "optuna/storages/_grpc/auto_generated"]
+exclude = [".venv", "venv", "build", "docs", "tutorial", "radia-optuna", "optuna/storages/_rdb/alembic", "optuna/storages/_grpc/auto_generated"]
 
 [[tool.mypy.overrides]]
 module = 'optuna.storages._grpc.auto_generated/*'
