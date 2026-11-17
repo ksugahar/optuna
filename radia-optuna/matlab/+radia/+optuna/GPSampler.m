@@ -300,9 +300,9 @@ classdef GPSampler < radia.optuna.BaseSampler
                 obj.PythonOptuna=py.importlib.import_module("optuna");
                 version=string(py.builtins.getattr( ...
                     obj.PythonOptuna,"__version__"));
-                if version~="5.0.0"
+                if version~=radia.optuna.version()
                     error("radia:optuna:GPPythonVersion", ...
-                        "Expected optuna==5.0.0, found %s.",version);
+                        "Expected optuna==%s, found %s.",radia.optuna.version(),version);
                 end
                 samplerArguments=obj.pythonSamplerArguments();
                 sampler=obj.PythonOptuna.samplers.GPSampler( ...
@@ -320,7 +320,7 @@ classdef GPSampler < radia.optuna.BaseSampler
                     rethrow(exception)
                 end
                 cause=MException("radia:optuna:GPPython", ...
-                    "Could not initialize the pinned Optuna 5.0.0 GP " + ...
+                    "Could not initialize the pinned Optuna GP " + ...
                      "backend with its NumPy, SciPy, and PyTorch runtime.");
                 throw(addCause(cause,exception));
             end

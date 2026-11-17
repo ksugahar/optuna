@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from . import __version__, layout, matlab_path, mex_path
+from . import ORACLE_VERSION, __version__, layout, matlab_path, mex_path
 
 
 _LAYOUT_HINTS = {
@@ -73,7 +73,7 @@ def _doctor_payload() -> dict[str, object]:
         "simulink_standalone": manifest["simulink_standalone"],
         "simulink_entry_points": manifest["simulink_entry_points"],
         "simulink_entry_count": sum(path.is_file() for path in simulink_entries),
-        "oracle_version": manifest["oracle_version"],
+        "oracle_version": ORACLE_VERSION,
         "radia_integration_adapters": manifest["radia_integration_adapters"],
         "third_party_notice": str(notice),
         "upstream_notices_complete": notices_complete,

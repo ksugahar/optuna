@@ -295,7 +295,7 @@ def test_wheel_verifier_rejects_solver_boundary_leaks():
     for forbidden in ("radia_mex", "ngsolve", "netgen", "mkl_", "radia_pybind"):
         assert forbidden in verifier
     assert "exact CPython ABI" in verifier
-    assert "optuna\\s*==\\s*5\\.0\\.0" in verifier
+    assert "optuna\\s*==\\s*{re.escape(UPSTREAM_VERSION)}" in verifier
     assert "THIRD_PARTY_NOTICES.md" in verifier
     assert "source_fidelity_verified" in verifier
     assert "wheel payload differs from the checked package source" in verifier

@@ -25,8 +25,9 @@ oracle=testCase.TestData.Oracle;
 verifyEqual(testCase,string(oracle.schema), ...
     "radia.test.optuna-upstream-mcp-oracle.v1");
 verifyEqual(testCase,string(oracle.transport),"stdio");
-verifyEqual(testCase,string(oracle.optuna_version),"5.0.0");
-verifyEqual(testCase,string(oracle.optuna_mcp_version),"0.2.0");
+verifyEqual(testCase,string(oracle.optuna_version),radia.optuna.version());
+[~, expectedMcp]=radia.optuna.version();
+verifyEqual(testCase,string(oracle.optuna_mcp_version),expectedMcp);
 verifyEqual(testCase,string(oracle.mcp_server_name),"Optuna");
 verifyNotEmpty(testCase,string(oracle.mcp_server_reported_version));
 

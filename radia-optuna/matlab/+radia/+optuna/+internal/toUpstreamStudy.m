@@ -15,9 +15,9 @@ if environment.ExecutionMode~="InProcess"
 end
 optunaModule=py.importlib.import_module("optuna");
 version=string(py.builtins.getattr(optunaModule,"__version__"));
-if version~="5.0.0"
+if version~=radia.optuna.version()
     error("radia:optuna:UpstreamVersion", ...
-        "Upstream adapters require optuna==5.0.0, found %s.",version);
+        "Upstream adapters require optuna==%s, found %s.",radia.optuna.version(),version);
 end
 if isa(trials,"radia.optuna.Study")
     studyDirection=trials.Directions;

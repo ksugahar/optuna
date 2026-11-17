@@ -13,6 +13,7 @@ from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
+UPSTREAM_VERSION = json.loads((PACKAGE_ROOT / "src/radia_optuna/upstream.json").read_text(encoding="utf-8"))["optuna"]
 PACKAGE_PREFIX = PurePosixPath("radia_optuna")
 MATLAB_PREFIX = PACKAGE_PREFIX / "matlab"
 OPTUNA_PREFIX = MATLAB_PREFIX / "+radia" / "+optuna"
@@ -128,8 +129,8 @@ def _upstream_dependency_errors(source_project):
     """Keep the package's independent upstream oracle pin explicit."""
     upstream = source_project["optional-dependencies"]["upstream"]
     oracle = [requirement for requirement in upstream if requirement.startswith("optuna==")]
-    if oracle != ["optuna==5.0.0"]:
-        return ["the package upstream extra must pin optuna==5.0.0"]
+    if oracle != [f"optuna=={UPSTREAM_VERSION}"]:
+        return [f"the package upstream extra must pin optuna=={UPSTREAM_VERSION}"]
     return []
 
 
@@ -142,7 +143,8 @@ def _evidence_errors(archive, names, source_manifest):
     errors = []
     if (evidence.get("schema") != "radia-optuna.compatibility-evidence.v1"
             or evidence.get("version") != source_manifest["version"]
-            or evidence.get("oracle_version") != source_manifest["oracle_version"]
+            or evidence.get("oracle_version") != UPSTREAM_VERSION
+            or source_manifest.get("oracle_version") != UPSTREAM_VERSION
             or evidence.get("hash_basis") != "utf8-lf-bytes"):
         errors.append("invalid compatibility evidence identity/hash basis")
     expected_oracles = set()
@@ -392,10 +394,10 @@ def verify(wheel: Path, *, release_candidate: bool = False) -> dict[str, object]
 
         requirements = metadata.get_all("Requires-Dist", [])
         if not any(
-            re.search(r"^optuna\s*==\s*5\.0\.0\s*;.*extra\s*==\s*['\"]upstream['\"]", req)
+            re.search(rf"^optuna\s*==\s*{re.escape(UPSTREAM_VERSION)}\s*;.*extra\s*==\s*['\"]upstream['\"]", req)
             for req in requirements
         ):
-            errors.append("the upstream extra does not pin optuna==5.0.0")
+            errors.append(f"the upstream extra does not pin optuna=={UPSTREAM_VERSION}")
 
     if errors:
         _fail(errors)

@@ -5,7 +5,7 @@ end
 function testDensityMatchesUpstream(testCase)
 root=fileparts(mfilename('fullpath'));
 oracle=jsondecode(fileread(fullfile(root,'..','..','oracles','optuna_cuda_density_oracle.json')));
-verifyEqual(testCase,string(oracle.optuna_version),"5.0.0");
+verifyEqual(testCase,string(oracle.optuna_version),radia.optuna.version());
 previous=radia.optuna.executionMode();
 cleanup=onCleanup(@()radia.optuna.executionMode(previous));
 for mode=["cpu","gpu"]
@@ -71,7 +71,7 @@ end
 function testGpuModelConstructionMatchesUpstream(testCase)
 root=fileparts(mfilename('fullpath'));
 oracle=jsondecode(fileread(fullfile(root,'..','..','oracles','optuna50_cuda_oracle.json')));
-verifyEqual(testCase,string(oracle.optuna_version),"5.0.0");
+verifyEqual(testCase,string(oracle.optuna_version),radia.optuna.version());
 previous=radia.optuna.executionMode();
 restoreMode=onCleanup(@()radia.optuna.executionMode(previous));
 for mode=["cpu","gpu"]

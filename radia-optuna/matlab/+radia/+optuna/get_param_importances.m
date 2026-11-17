@@ -1,5 +1,5 @@
 function result=get_param_importances(study,options)
-%GET_PARAM_IMPORTANCES Evaluate parameter importance with Optuna 5.0.0.
+%GET_PARAM_IMPORTANCES Evaluate parameter importance with the pinned Optuna release.
 arguments
     study (1,1) radia.optuna.Study
     options.evaluator (1,1) string = "ped_anova"
@@ -115,9 +115,9 @@ if environment.ExecutionMode~="InProcess" || ...
         "Parameter importance requires in-process Python 3.12.");
 end
 optuna=py.importlib.import_module("optuna");
-if string(py.builtins.getattr(optuna,"__version__"))~="5.0.0"
+if string(py.builtins.getattr(optuna,"__version__"))~=radia.optuna.version()
     error("radia:optuna:ImportancePython", ...
-        "Parameter importance requires optuna==5.0.0.");
+        "Parameter importance requires optuna==%s.",radia.optuna.version());
 end
 end
 

@@ -1,4 +1,4 @@
-"""Compare the Optuna 5.0.0 public inventory with the MATLAB package surface."""
+"""Compare the pinned Optuna public inventory with the MATLAB package surface."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+UPSTREAM_VERSION = json.loads((PACKAGE_ROOT / "src/radia_optuna/upstream.json").read_text(encoding="utf-8"))["optuna"]
 INVENTORY_PATH = PACKAGE_ROOT / "oracles/optuna50_public_api.json"
 ORACLE_PATH = PACKAGE_ROOT / "oracles/optuna50_oracle.json"
 MATLAB_DIRECTORY = PACKAGE_ROOT / "matlab" / "+radia" / "+optuna"
@@ -1332,11 +1333,11 @@ def _matlab_qualified_names() -> dict[str, str]:
 
 def build_coverage() -> dict[str, Any]:
     inventory = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
-    if inventory.get("optuna_version") != "5.0.0":
-        raise RuntimeError("The public API inventory is not pinned to Optuna 5.0.0.")
+    if inventory.get("optuna_version") != UPSTREAM_VERSION:
+        raise RuntimeError(f"The public API inventory is not pinned to Optuna {UPSTREAM_VERSION}.")
     oracle = json.loads(ORACLE_PATH.read_text(encoding="utf-8"))
-    if oracle.get("optuna_version") != "5.0.0":
-        raise RuntimeError("The differential oracle is not pinned to Optuna 5.0.0.")
+    if oracle.get("optuna_version") != UPSTREAM_VERSION:
+        raise RuntimeError(f"The differential oracle is not pinned to Optuna {UPSTREAM_VERSION}.")
     required_sections = {
         section
         for sections in CLASS_ORACLE_SECTIONS.values()
@@ -1451,7 +1452,7 @@ def build_coverage() -> dict[str, Any]:
     )
     return {
         "schema": "radia.optuna50-api-coverage.v1",
-        "upstream_version": "5.0.0",
+        "upstream_version": UPSTREAM_VERSION,
         "upstream_inventory": "packages/radia-optuna/oracles/optuna50_public_api.json",
         "upstream_inventory_sha256": _sha256(INVENTORY_PATH),
         "upstream_oracle": "packages/radia-optuna/oracles/optuna50_oracle.json",

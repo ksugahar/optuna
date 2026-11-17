@@ -31,13 +31,13 @@ QMC are rejected, also when restored from a saved study; their batch APIs remain
 available. Neither an unscrambled sequence nor a different GP algorithm is
 silently substituted. Objective callbacks must also respect the step-time rule.
 
-The checked Optuna 5.0.0 public inventory contains all 812 inventoried symbols
+The checked upstream Optuna public inventory contains all 812 inventoried symbols
 and public class members. Of these, 749 are mapped from executable upstream
 oracle evidence and 63 wider Python-language/replaced/bridged entries are
 explicit assertions. The required shared MATLAB scope is 401/401
 evidence-mapped with no asserted required entry.
 See `optuna_upstream_compatibility.json` and `optuna50_api_coverage.json` for
-the exact machine-readable boundary. Optuna 5.0.0 is the common algorithmic
+the exact machine-readable boundary. The pinned Optuna release is the common algorithmic
 source of truth, while native MATLAB/MEX vectorization may execute that
 algorithm without Python. Unified `TPESampler` owns both scalar and
 multi-objective TPE, and removed 4.x public APIs are not exposed. This is a
@@ -87,7 +87,7 @@ JSON handoff to the `radia-optuna-bridge` CLI and a real upstream Optuna
 storage. The handoff preserves original names, constraints, metric names,
 attributes, distributions, and trial state; it is not a runtime fallback.
 
-`Study.trials_dataframe` follows the Optuna 5.0.0 `attrs` expansion and column
+`Study.trials_dataframe` follows the upstream Optuna `attrs` expansion and column
 ordering while returning a native MATLAB `table`:
 
 ```matlab
@@ -115,4 +115,4 @@ The setting applies to the MATLAB process, including Simulink, and must be
 selected separately in each worker. CPU mode does not initialize CUDA. GPU
 errors raise without falling back. Query `radia.optuna.executionMode()` or
 `optuna_mex('api.info')` to inspect the selected route. This extension does not
-change Optuna 5.0.0 sampler settings, random consumption or stored Study state.
+change upstream Optuna sampler settings, random consumption or stored Study state.

@@ -98,5 +98,5 @@ def test_bridge_refuses_an_unpinned_optuna(monkeypatch):
     import optuna
 
     monkeypatch.setattr(optuna, "__version__", "4.9.0")
-    with pytest.raises(RuntimeError, match="requires optuna==5.0.0"):
+    with pytest.raises(RuntimeError, match="requires optuna=="):
         bridge._optuna()
