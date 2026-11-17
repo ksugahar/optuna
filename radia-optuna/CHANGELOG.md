@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased
+## 5.1.0.1 (2026-11-18)
 
 - GPU TPE candidate scoring evaluates both mixtures in one kernel launch.
   `density_launches` now increases by one per GPU `best()` call, down from two.
 
-## 5.1.0 (unreleased)
+## 5.1.0 (2026-11-17)
 
 - Align the distribution version with upstream Optuna.
 - Keep the distribution name `radia-optuna` and publish from the Optuna fork.
