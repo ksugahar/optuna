@@ -6,7 +6,7 @@ import json
 from importlib.resources import files
 from pathlib import Path
 
-__version__ = json.loads(files(__package__).joinpath("manifest.json").read_text(encoding="utf-8"))["version"]
+__version__ = "5.1.0"
 ORACLE_VERSION = json.loads(files(__package__).joinpath("upstream.json").read_text(encoding="utf-8"))["optuna"]
 
 

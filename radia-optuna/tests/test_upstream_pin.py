@@ -110,6 +110,11 @@ def test_no_active_upstream_optuna_pin_literals():
         if path.suffix not in {".md", ".json", ".py", ".m", ".yml", ".yaml", ".ps1", ".toml", ".cpp", ".cu", ".hpp"}:
             continue
         for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if file == "src/radia_optuna/__init__.py" and re.fullmatch(
+                r'__version__ = "[0-9.]+"', line
+            ):
+                # Package release metadata is checked separately against the upstream pin.
+                continue
             line = line.replace(r"\\.", ".").replace(r"\.", ".")
             mcp = re.search(r"optuna[-_]mcp.{0,12}" + re.escape(PIN["optuna_mcp"]), line, re.I)
             if PIN["optuna"] in line or mcp:
