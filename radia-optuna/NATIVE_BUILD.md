@@ -44,7 +44,13 @@ The package build entry is `tools/build_native.ps1`, with explicit `-Python`,
 kernel module. Run `validation_test/validate_kernels.py --backend cpu` with
 that `python-build.json` receipt. Stage `matlab` requires the resulting
 `-PythonVerification` receipt and rejects changed archive/objects/source.
-All Windows native CI jobs run on the A100 runner (`gpu-a100`). The build
+Development follows one order (2026-11-17). The build host implements and
+checks the CPU base in both bindings, pybind11 and MATLAB, and CPU CI runs
+there. Flow2 then develops the Python/pybind11 GPU route (Linux, no MATLAB or
+Simulink), and A100 develops the MATLAB GPU route. In CI, the build job and
+the CPU MATLAB HDF5 storage job run on the build-host runner (`100`, `cpu`);
+the build job compiles CUDA but executes only CPU checks. The GPU acceptance
+and MATLAB Engine jobs run on the A100 runner (`gpu-a100`). The build
 job builds the release wheel once and links its build receipt to the CPU
 Python proof. GPU acceptance, MATLAB Engine and CPU MATLAB HDF5 storage
 install the same wheel and verify its SHA-256 against the build job's output.
