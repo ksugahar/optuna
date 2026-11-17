@@ -1,0 +1,225 @@
+name: radia-optuna
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radia-optuna-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  source-contracts:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest packaging optuna==5.0.0
+      - run: python -m pytest tests -q
+
+  build-test:
+    needs: source-contracts
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
+    timeout-minutes: 45
+    outputs:
+      wheel-sha256: ${{ steps.wheel.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create run-local Python environment
+        shell: pwsh
+        run: |
+          $venv = Join-Path $env:RUNNER_TEMP "radia-optuna-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          py -3.12 -m venv $venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $py = Join-Path $venv 'Scripts\python.exe'
+          "RADIA_OPTUNA_CI_PYTHON=$py" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $venv 'Scripts') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build and verify Python kernels before linking plain MEX
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          $requirements = (& $env:RADIA_OPTUNA_CI_PYTHON -c "import json,tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(json.dumps(d['build-system']['requires']+d['project']['optional-dependencies']['test']+d['project']['optional-dependencies']['native']))") | ConvertFrom-Json
+          & $env:RADIA_OPTUNA_CI_PYTHON -m pip install @requirements optuna==5.0.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $matlabRoot = Join-Path $env:ProgramFiles 'MATLAB/R2026a'
+          $build = Join-Path $root 'build-optuna-native'
+          & pwsh -NoProfile -File "$root/tools/build_native.ps1" -Stage python -Python $env:RADIA_OPTUNA_CI_PYTHON -MatlabRoot $matlabRoot -BuildDirectory $build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:RADIA_OPTUNA_CI_PYTHON "$root/validation_test/validate_kernels.py" --backend cpu --build-receipt "$build/python-build.json" --report "$build/python-cpu-verification.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & pwsh -NoProfile -File "$root/tools/build_native.ps1" -Stage matlab -Python $env:RADIA_OPTUNA_CI_PYTHON -MatlabRoot $matlabRoot -BuildDirectory $build -PythonVerification "$build/python-cpu-verification.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $escaped = $root.Replace("'", "''")
+          & matlab -batch "addpath('$escaped/matlab'); addpath('$escaped/validation_test'); validate_binding_parity('$escaped/build-optuna-native/python-cpu-verification.json','$escaped/build-optuna-native/parity-cpu.json');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test, build, and verify radia-optuna wheel
+        id: wheel
+        shell: pwsh
+        run: |
+          & $env:RADIA_OPTUNA_CI_PYTHON -m pip install build wheel pytest optuna==5.0.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:RADIA_OPTUNA_CI_PYTHON -m pytest tests -q
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:RADIA_OPTUNA_CI_PYTHON -m build --wheel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $wheels = @(Get-ChildItem dist/*.whl)
+          if ($wheels.Count -ne 1) {
+            throw "Expected one radia-optuna wheel, found $($wheels.Count)"
+          }
+          & $env:RADIA_OPTUNA_CI_PYTHON verify_wheel.py $wheels[0].FullName --json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $sha = (Get-FileHash -LiteralPath $wheels[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "sha256=$sha" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Verify CPU upstream TPE parity
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path.Replace("'", "''")
+          & matlab -batch "addpath('$root/validation_test/optimization'); validate_optuna_cuda('$root','$root/build-optuna-native/cpu-selection-validation.json','cpu');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload radia-optuna wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: radia-optuna-wheel
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  installed-wheel-matlab-e2e:
+    name: radia-optuna installed-wheel MATLAB/Simulink E2E
+    needs: [build-test]
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the verified radia-optuna wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: radia-optuna-wheel
+          path: dist/radia-optuna
+
+
+      - name: Verify the GPU from the installed release wheel
+        shell: pwsh
+        env:
+          EXPECTED_WHEEL_SHA256: ${{ needs.build-test.outputs.wheel-sha256 }}
+        run: |
+          & pwsh -NoProfile -File validation_test/run_a100_acceptance.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installed-wheel GPU and Simulink evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radia-optuna-simulink-gpu-acceptance
+          path: build-optuna-gpu-evidence/*.json
+          if-no-files-found: warn
+
+  installed-wheel-release-engine:
+    name: radia-optuna installed-wheel release Engine
+    needs: [build-test]
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: radia-optuna-wheel
+          path: dist/radia-optuna
+      - name: Qualify the exact CI wheel through MATLAB Engine
+        shell: pwsh
+        env:
+          EXPECTED_WHEEL_SHA256: ${{ needs.build-test.outputs.wheel-sha256 }}
+        run: |
+          $wheels = @(Get-ChildItem dist/radia-optuna/*.whl)
+          if ($wheels.Count -ne 1) {
+            throw "Expected one verified radia-optuna wheel, found $($wheels.Count)"
+          }
+          $receipt = Join-Path $env:RUNNER_TEMP "radia-optuna-release-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT.json"
+          $python = (& py -3.12 -I -c "import sys; print(sys.executable)").Trim()
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Expected an installed Python 3.12 interpreter.' }
+          if ($env:EXPECTED_WHEEL_SHA256 -notmatch '^[0-9a-f]{64}$') { throw 'Expected the build-job SHA-256.' }
+          & pwsh -NoProfile -File tests/run_installed_wheel_simulink.ps1 -PythonExecutable $python -Wheel $wheels[0].FullName -EvidenceOutput $receipt -PreverifiedWheelSha256 $env:EXPECTED_WHEEL_SHA256
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  installed-wheel-hdf5-storage:
+    name: radia-optuna installed-wheel HDF5 storage (CPU MATLAB)
+    needs: [build-test]
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the verified radia-optuna wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: radia-optuna-wheel
+          path: dist/radia-optuna
+
+      - name: Install the built wheel and record its import identity
+        shell: pwsh
+        env:
+          EXPECTED_WHEEL_SHA256: ${{ needs.build-test.outputs.wheel-sha256 }}
+        run: |
+          $wheels = @(Get-ChildItem dist/radia-optuna/*.whl)
+          if ($wheels.Count -ne 1) {
+            throw "Expected one verified radia-optuna wheel, found $($wheels.Count)"
+          }
+          $actualSha256 = (Get-FileHash -LiteralPath $wheels[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($env:EXPECTED_WHEEL_SHA256 -cnotmatch '^[0-9a-f]{64}$' -or $actualSha256 -cne $env:EXPECTED_WHEEL_SHA256) {
+            throw "HDF5 wheel SHA-256 mismatch: expected $env:EXPECTED_WHEEL_SHA256, got $actualSha256"
+          }
+          $venv = Join-Path $env:RUNNER_TEMP "radia-optuna-hdf5-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          py -3.12 -m venv $venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $venvPython = Join-Path $venv 'Scripts/python.exe'
+          & $venvPython -m pip install --disable-pip-version-check --no-deps $wheels[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $venvPython -I -c "import hashlib,json,pathlib,sys,radia_optuna; from radia_optuna import matlab_path; w=pathlib.Path(sys.argv[1]); identity={'schema':'radia.optuna.installed-wheel-identity.v1','sha':sys.argv[2],'wheel':w.name,'wheel_sha256':hashlib.sha256(w.read_bytes()).hexdigest(),'radia_optuna_file':radia_optuna.__file__,'matlab_path':str(matlab_path())}; pathlib.Path(sys.argv[3]).write_bytes((json.dumps(identity,indent=2)+chr(10)).encode('utf-8'))" $wheels[0].FullName "${{ github.sha }}" installed-wheel-identity.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installedMatlabPath = (& $venvPython -I -c 'from radia_optuna import matlab_path; print(matlab_path())').Trim()
+          if (-not (Test-Path -LiteralPath $installedMatlabPath -PathType Container)) {
+            throw "Installed MATLAB directory is missing: $installedMatlabPath"
+          }
+          "RADIA_OPTUNA_MATLAB_PATH=$installedMatlabPath" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Check the installed-wheel gate rejects omissions and sibling paths
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path.Replace("'", "''")
+          & matlab -batch "r = runtests('$root/tests/matlab/test_installed_wheel_hdf5_gate.m'); assert(numel(r) == 5 && all([r.Passed]), 'installed-wheel gate self-test failed');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run the HDF5 storage tests against the installed wheel
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path.Replace("'", "''")
+          & matlab -batch "addpath(getenv('RADIA_OPTUNA_MATLAB_PATH')); addpath('$root/tests/matlab'); run_installed_wheel_hdf5_storage(string(getenv('RADIA_OPTUNA_MATLAB_PATH')), '$root/tests/matlab/test_optuna_hdf5_storage.m', '$root/installed-wheel-hdf5-storage.json');"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installed-wheel HDF5 storage receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radia-optuna-hdf5-storage-receipt
+          path: |
+            installed-wheel-identity.json
+            installed-wheel-hdf5-storage.json
+          if-no-files-found: error
+          retention-days: 30
