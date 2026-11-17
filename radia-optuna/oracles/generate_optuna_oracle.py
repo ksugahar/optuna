@@ -2827,6 +2827,17 @@ def _study_management_contract() -> dict[str, object]:
     summary_without_best = optuna.get_all_study_summaries(
         target_storage, include_best_trial=False
     )[0]
+    constrained_storage = optuna.storages.InMemoryStorage()
+    constrained = optuna.create_study(storage=constrained_storage)
+    infeasible = constrained.ask()
+    infeasible.set_constraint("limit", 1.0)
+    constrained.tell(infeasible, 0.0)
+    before_feasible = optuna.get_all_study_summaries(constrained_storage)[0]
+    feasible = constrained.ask()
+    feasible.set_constraint("limit", -1.0)
+    constrained.tell(feasible, 1.0)
+    after_feasible = optuna.get_all_study_summaries(constrained_storage)[0]
+
     multi_storage = optuna.storages.InMemoryStorage()
     optuna.create_study(
         study_name="multi",
@@ -2847,6 +2858,8 @@ def _study_management_contract() -> dict[str, object]:
         "loaded": loaded_result,
         "explicit_empty_copy_name": optuna.get_all_study_names(unnamed_storage)[0],
         "omitted_copy_name": optuna.get_all_study_names(omitted_storage)[0],
+        "summary_has_best_with_only_infeasible": before_feasible.best_trial is not None,
+        "summary_feasible_best_value": float(after_feasible.best_trial.value),
         "copied": {
             "name": copied.study_name,
             "direction": copied.direction.name,

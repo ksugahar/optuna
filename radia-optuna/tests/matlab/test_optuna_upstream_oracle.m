@@ -803,7 +803,9 @@ target=string(tempname("C:\temp"))+".h5";
 multiTarget=string(tempname("C:\temp"))+".h5";
 emptyTarget=string(tempname("C:\temp"))+".h5";
 defaultTarget=string(tempname("C:\temp"))+".h5";
-cleanup=onCleanup(@()cleanupStudyFiles([source,target,multiTarget,emptyTarget,defaultTarget]));
+constraintTarget=string(tempname("C:\temp"))+".h5";
+cleanup=onCleanup(@()cleanupStudyFiles( ...
+    [source,target,multiTarget,emptyTarget,defaultTarget,constraintTarget]));
 study=radia.optuna.create_study(study_name="alpha", ...
     direction="maximize",storage=source);
 study.add_trial(radia.optuna.createTrial(Value=1.25, ...
@@ -841,6 +843,20 @@ radia.optuna.copyStudy(from_study_name="alpha", ...
     from_storage=source,to_storage=defaultTarget);
 verifyEqualWithPrecision(testCase,radia.optuna.get_all_study_names(defaultTarget), ...
     string(expected.omitted_copy_name));
+
+constrained=radia.optuna.create_study(storage=constraintTarget);
+infeasible=constrained.ask();
+infeasible.set_constraint("limit",1);
+constrained.tell(infeasible,0);
+beforeFeasible=radia.optuna.get_all_study_summaries(constraintTarget);
+verifyEqualWithPrecision(testCase,~isempty(beforeFeasible.best_trial), ...
+    logical(expected.summary_has_best_with_only_infeasible));
+feasible=constrained.ask();
+feasible.set_constraint("limit",-1);
+constrained.tell(feasible,1);
+afterFeasible=radia.optuna.get_all_study_summaries(constraintTarget);
+verifyEqualWithPrecision(testCase,afterFeasible.best_trial.Value, ...
+    double(expected.summary_feasible_best_value));
 
 summary=radia.optuna.get_all_study_summaries(target);
 verifyClass(testCase,summary,"radia.optuna.StudySummary");

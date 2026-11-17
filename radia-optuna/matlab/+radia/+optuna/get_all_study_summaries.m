@@ -13,7 +13,13 @@ study=radia.optuna.load_study(study_name=names(1),storage=storage);
 best=[];
 if options.include_best_trial && isscalar(study.Directions) && ...
         any(study.TrialTable.State=="COMPLETE")
-    best=study.best_trial();
+    try
+        best=study.best_trial();
+    catch exception
+        if string(exception.identifier)~="radia:optuna:NoFeasibleTrial"
+            rethrow(exception);
+        end
+    end
 end
 starts=study.TrialTable.StartTime;
 starts=starts(~isnat(starts));
