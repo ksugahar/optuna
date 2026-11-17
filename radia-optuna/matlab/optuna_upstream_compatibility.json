@@ -44,6 +44,7 @@
   ],
   "unsupported_or_not_claimed": [
     "Python pickling, arbitrary Python subclass identity, and binary drop-in replacement",
-    "MATLAB-only integration behavior as evidence of upstream parity"
+    "MATLAB-only integration behavior as evidence of upstream parity",
+    "Python concurrent.futures exception draining in Study.optimize; MATLAB parallel scheduling follows its own extension contract"
   ]
 }

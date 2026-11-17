@@ -796,6 +796,37 @@ verifyError(testCase,@()trial.suggest_categorical("kind",["a","c"]), ...
     "radia:optuna:IncompatibleDistribution");
 end
 
+function testMigrationEdgeCasesMatchUpstream(testCase)
+expected=testCase.TestData.Oracle.migration_edges;
+grid=radia.optuna.Study(Sampler=radia.optuna.GridSampler(struct("x",0),Seed=7),AutoSave=false);
+grid.enqueue_trial(struct("x",1));
+grid.optimize(@(trial)trial.suggest_int("x",0,1),3);
+verifyEqualWithPrecision(testCase,reshape(grid.TrialTable.Value,1,[]), ...
+    reshape(double(expected.grid_with_enqueued_first),1,[]));
+
+integers=radia.optuna.Study(AutoSave=false);
+integers.enqueue_trial(struct("x",int64(1000000000)));
+integers.enqueue_trial(struct("x",int64(1000000001)),SkipIfExists=true);
+verifyEqualWithPrecision(testCase,height(integers.TrialTable), ...
+    double(expected.distinct_integer_queue_count));
+
+percentile=radia.optuna.Study(Pruner=radia.optuna.PercentilePruner(50,NStartupTrials=0),AutoSave=false);
+historical=percentile.ask();
+historical.report(NaN,0);
+percentile.tell(historical,1);
+candidate=percentile.ask();
+candidate.report(1,0);
+nanCandidate=percentile.ask();
+nanCandidate.report(NaN,0);
+verifyFalse(testCase,logical(expected.percentile_runtime_warning));
+verifyWarningFree(testCase,@()candidate.should_prune());
+verifyWarningFree(testCase,@()nanCandidate.should_prune());
+verifyEqualWithPrecision(testCase,candidate.should_prune(), ...
+    logical(expected.percentile_all_nan_reference_prunes));
+verifyEqualWithPrecision(testCase,nanCandidate.should_prune(), ...
+    logical(expected.percentile_all_nan_candidate_prunes));
+end
+
 function testStudyManagementMatchesUpstream(testCase)
 expected=testCase.TestData.Oracle.study_management;
 source=string(tempname("C:\temp"))+".h5";

@@ -2782,6 +2782,39 @@ def _frozen_trial_contract() -> dict[str, object]:
     }
 
 
+def _migration_edge_contract() -> dict[str, object]:
+    grid = optuna.create_study(sampler=optuna.samplers.GridSampler({"x": [0]}, seed=7))
+    grid.enqueue_trial({"x": 1})
+    grid.optimize(lambda trial: trial.suggest_int("x", 0, 1), n_trials=3)
+
+    integer_queue = optuna.create_study()
+    integer_queue.enqueue_trial({"x": 1_000_000_000})
+    integer_queue.enqueue_trial({"x": 1_000_000_001}, skip_if_exists=True)
+
+    percentile = optuna.create_study(
+        pruner=optuna.pruners.PercentilePruner(50.0, n_startup_trials=0)
+    )
+    historical = percentile.ask()
+    historical.report(float("nan"), 0)
+    percentile.tell(historical, 1.0)
+    candidate = percentile.ask()
+    candidate.report(1.0, 0)
+    nan_candidate = percentile.ask()
+    nan_candidate.report(float("nan"), 0)
+    with warnings.catch_warnings(record=True) as messages:
+        warnings.simplefilter("always")
+        prune_present = candidate.should_prune()
+        prune_nan = nan_candidate.should_prune()
+
+    return {
+        "grid_with_enqueued_first": [trial.params["x"] for trial in grid.trials],
+        "distinct_integer_queue_count": len(integer_queue.trials),
+        "percentile_all_nan_reference_prunes": prune_present,
+        "percentile_all_nan_candidate_prunes": prune_nan,
+        "percentile_runtime_warning": any(issubclass(msg.category, RuntimeWarning) for msg in messages),
+    }
+
+
 def _study_management_contract() -> dict[str, object]:
     source_storage = optuna.storages.InMemoryStorage()
     target_storage = optuna.storages.InMemoryStorage()
@@ -3628,6 +3661,7 @@ def build_oracle() -> dict[str, object]:
         "fixed_trial": _fixed_trial_contract(),
         "frozen_trial": _frozen_trial_contract(),
         "study_management": _study_management_contract(),
+        "migration_edges": _migration_edge_contract(),
         "trials_dataframe": _trials_dataframe_contract(),
         "importance": _importance_contract(),
         "integration": _integration_contract(),
