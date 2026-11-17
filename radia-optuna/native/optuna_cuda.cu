@@ -352,58 +352,88 @@ __global__ void construct_model(const double* observations, std::size_t n,
 }
 // A block per candidate evaluates mixture components in parallel. The final
 // ordered reduction retains the oracle's summation and tie-breaking contract.
-__global__ void density(const double* samples, std::size_t count,
-                         const DeviceEstimator* estimators, std::size_t dimensions,
-                         const double* data, const double* normalization, double* terms, double* output) {
-    const std::size_t row = blockIdx.x;
-    if (row >= count) return;
-    const auto kernels = estimators[0].kernels;
-    double* components = terms + row * kernels;
+struct DensityView {
+    const DeviceEstimator* estimators;
+    const double* data;
+    const double* normalization;
+};
+
+__device__ double score_row(const double* samples, std::size_t dimensions,
+                            DensityView mixture, double* components, double& maximum) {
+    const auto kernels = mixture.estimators[0].kernels;
     for (std::size_t k = threadIdx.x; k < kernels; k += blockDim.x) {
-        double value = log(data[estimators[0].weights + k]);
+        double value = log(mixture.data[mixture.estimators[0].weights + k]);
         for (std::size_t d = 0; d < dimensions; ++d)
-            value += component(estimators[d], data, samples[row * dimensions + d], k, normalization);
+            value += component(mixture.estimators[d], mixture.data, samples[d], k,
+                               mixture.normalization);
         components[k] = value;
     }
     __syncthreads();
-    __shared__ double maximum;
     if (threadIdx.x == 0) {
         maximum = -INFINITY;
         for (std::size_t k = 0; k < kernels; ++k) maximum = fmax(maximum, components[k]);
     }
-    if (kernels < 128) {
-        if (threadIdx.x != 0) return;
-        if (maximum == -INFINITY) { output[row] = maximum; return; }
-        double total = 0.0;
-        for (std::size_t k = 0; k < kernels; ++k) total += exp(components[k] - maximum);
-        output[row] = maximum + log(total);
-        return;
-    }
     __syncthreads();
-    if (maximum == -INFINITY) {
-        if (threadIdx.x == 0) output[row] = maximum;
-        return;
+    if (maximum == -INFINITY) return maximum;
+    if (kernels >= 128) {
+        for (std::size_t k = threadIdx.x; k < kernels; k += blockDim.x)
+            components[k] = exp(components[k] - maximum);
+        __syncthreads();
     }
-    // Independent exponentials can run in parallel. Keep both maximum and
-    // final addition ordered, including the first-maximum candidate contract.
-    for (std::size_t k = threadIdx.x; k < kernels; k += blockDim.x)
-        components[k] = exp(components[k] - maximum);
-    __syncthreads();
-    if (threadIdx.x != 0) return;
+    if (threadIdx.x != 0) return 0.0;
     double total = 0.0;
-    for (std::size_t k = 0; k < kernels; ++k) total += components[k];
-    output[row] = maximum + log(total);
+    for (std::size_t k = 0; k < kernels; ++k)
+        total += kernels < 128 ? exp(components[k] - maximum) : components[k];
+    return maximum + log(total);
 }
-__global__ void select_best(const double* below, const double* above,
-                            std::size_t count, std::size_t* result) {
-    std::size_t best = 0;
-    double maximum = -INFINITY;
-    for (std::size_t row = 0; row < count; ++row) {
-        const double acquisition = below[row] - above[row];
-        if (!isfinite(acquisition)) { *result = count; return; }
-        if (acquisition > maximum) { maximum = acquisition; best = row; }
+
+__global__ void density(const double* samples, std::size_t dimensions,
+                        DensityView mixture, double* terms, double* output) {
+    const std::size_t row = blockIdx.x;
+    __shared__ double maximum;
+    const double score = score_row(samples + row * dimensions, dimensions, mixture,
+                                   terms + row * mixture.estimators[0].kernels, maximum);
+    if (threadIdx.x == 0) output[row] = score;
+}
+
+__global__ void acquisition(const double* candidates, std::size_t dimensions,
+                            DensityView below, DensityView above,
+                            std::size_t stride, double* terms, double* scores) {
+    const std::size_t row = blockIdx.x;
+    const double* sample = candidates + row * dimensions;
+    double* components = terms + row * stride;
+    __shared__ double maximum;
+    const double lower = score_row(sample, dimensions, below, components, maximum);
+    __syncthreads(); // The upper mixture reuses the lower mixture's scratch.
+    const double upper = score_row(sample, dimensions, above, components, maximum);
+    if (threadIdx.x == 0) scores[row] = lower - upper;
+}
+
+__global__ void select_best(const double* scores, std::size_t count, std::size_t* result) {
+    constexpr unsigned width = 128;
+    __shared__ std::size_t indices[width];
+    __shared__ bool invalid[width];
+    const unsigned lane = threadIdx.x;
+    std::size_t best = count;
+    bool nonfinite = false;
+    for (std::size_t row = lane; row < count; row += width) {
+        if (!isfinite(scores[row])) nonfinite = true;
+        else if (best == count || scores[row] > scores[best]) best = row;
     }
-    *result = best;
+    indices[lane] = best;
+    invalid[lane] = nonfinite;
+    __syncthreads();
+    for (unsigned half = width / 2; half != 0; half /= 2) {
+        if (lane < half) {
+            const auto left = indices[lane], right = indices[lane + half];
+            if (right != count && (left == count || scores[right] > scores[left] ||
+                (scores[right] == scores[left] && right < left)))
+                indices[lane] = right;
+            invalid[lane] = invalid[lane] || invalid[lane + half];
+        }
+        __syncthreads();
+    }
+    if (lane == 0) *result = invalid[0] ? count : indices[0];
 }
 // Share component equations with CUDA; parallelize candidates only. Ordered
 // per-candidate summation and first-maximum selection preserve oracle behavior.
@@ -489,8 +519,9 @@ void launch(Buffer& arena, std::size_t samples, std::size_t count, std::size_t d
     if (count > static_cast<std::size_t>(INT_MAX))
         throw std::overflow_error("Optuna CUDA grid size overflow");
     density<<<static_cast<unsigned>(count), 128>>>(
-        arena.as<double>(samples), count, arena.as<DeviceEstimator>(mixture.descriptors),
-        dimensions, arena.as<double>(mixture.data), arena.as<double>(mixture.normalization), arena.as<double>(terms), arena.as<double>(output));
+        arena.as<double>(samples), dimensions,
+        {arena.as<DeviceEstimator>(mixture.descriptors), arena.as<double>(mixture.data),
+         arena.as<double>(mixture.normalization)}, arena.as<double>(terms), arena.as<double>(output));
     check(cudaGetLastError(), "launch density");
     ++stats.density_launches;
 }
@@ -708,35 +739,39 @@ std::size_t best(const std::vector<double>& candidates,
         lower_mix->normalization = layout.reserve<double>(lower->normalization_count);
         upper_mix->normalization = layout.reserve<double>(upper->normalization_count);
     }
-    const auto lower_pdf = layout.reserve<double>(count), upper_pdf = layout.reserve<double>(count);
+    if (count > static_cast<std::size_t>(INT_MAX))
+        throw std::overflow_error("Optuna CUDA grid size overflow");
+    const auto scores = layout.reserve<double>(count);
     const auto index = layout.reserve<std::size_t>(1);
-    const auto terms = layout.reserve<double>(product(count,
-        std::max(below.front().weights->size(), above.front().weights->size())));
+    const auto stride = std::max(below.front().weights->size(), above.front().weights->size());
+    const auto terms = layout.reserve<double>(product(count, stride));
     Buffer arena(layout.bytes);
     stats.peak_temporary_bytes = std::max(stats.peak_temporary_bytes, layout.bytes);
     upload(arena, layout.input.data(), layout.input.size());
+    DensityView views[2];
     if (lower_model) {
-        if (count > static_cast<std::size_t>(INT_MAX))
-            throw std::overflow_error("Optuna CUDA grid size overflow");
         const PreparedModel* models[] = {lower_model, upper_model};
-        const std::size_t outputs[] = {lower_pdf, upper_pdf};
         for (int i = 0; i < 2; ++i) {
-            density<<<static_cast<unsigned>(count), 128>>>(arena.as<double>(input), count,
-                models[i]->storage->as<DeviceEstimator>(models[i]->descriptors), below.size(),
-                models[i]->storage->as<double>(), models[i]->storage->as<double>(), arena.as<double>(terms), arena.as<double>(outputs[i]));
-            check(cudaGetLastError(), "launch prepared density"); ++stats.density_launches;
+            auto& storage = *models[i]->storage;
+            views[i] = {storage.as<DeviceEstimator>(models[i]->descriptors),
+                        storage.as<double>(), storage.as<double>()};
         }
     } else {
         const DeviceMixture* mixtures[] = {lower_mix.get(), upper_mix.get()};
-        const std::size_t outputs[] = {lower_pdf, upper_pdf};
         for (int i = 0; i < 2; ++i) {
+            auto& view = views[i];
+            view = {arena.as<DeviceEstimator>(mixtures[i]->descriptors),
+                    arena.as<double>(mixtures[i]->data), arena.as<double>(mixtures[i]->normalization)};
             prepare_density<<<static_cast<unsigned>(below.size()), 128>>>(
-                arena.as<DeviceEstimator>(mixtures[i]->descriptors), arena.as<double>(mixtures[i]->data), arena.as<double>(mixtures[i]->normalization));
+                view.estimators, view.data, arena.as<double>(mixtures[i]->normalization));
             check(cudaGetLastError(), "prepare candidate density"); ++stats.preparation_launches;
-            launch(arena, input, count, below.size(), *mixtures[i], terms, outputs[i]);
         }
     }
-    select_best<<<1, 1>>>(arena.as<double>(lower_pdf), arena.as<double>(upper_pdf), count, arena.as<std::size_t>(index));
+    acquisition<<<static_cast<unsigned>(count), 128>>>(arena.as<double>(input), below.size(),
+        views[0], views[1], stride, arena.as<double>(terms), arena.as<double>(scores));
+    check(cudaGetLastError(), "launch acquisition");
+    ++stats.density_launches;
+    select_best<<<1, 128>>>(arena.as<double>(scores), count, arena.as<std::size_t>(index));
     check(cudaGetLastError(), "launch selection");
     ++stats.selection_launches;
     std::size_t result;
