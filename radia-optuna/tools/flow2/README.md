@@ -73,13 +73,21 @@ Steps
 Gates and failure handling
 --------------------------
 
-Every job writes `terminal.txt` with the last phase and exit code. `summarize.py`
-exits non-zero, still writing `result.json`, when any of these hold:
+Every job writes `job.json` (run, PBS job ID, node) and `terminal.txt` with the
+last phase and exit code. A run counts as finished only with `phase=complete`
+and `exit_code=0`. The validation job writes `validated-wheel.json`: the build
+name, wheel filename, SHA-256 of the exact file it installed, the receipt hash
+and the source SHA. `result.json` lists all PBS job IDs. `summarize.py` exits
+non-zero, still writing `result.json`, when any of these hold:
 
-- a build did not complete, or its receipt names another source commit;
-- the validated wheel is not a completed build's wheel;
+- a run lacks a job ID, or is not `complete` with exit code 0;
+- a build does not have exactly one wheel, its bytes differ from its own
+  `wheel.sha256`, or its receipt names another source commit;
+- the validated wheel identity does not match the selected build in every field
+  (builds normally share a filename, so the filename alone identifies nothing);
 - GPU kernel verification failed, or no GPU launch or device was recorded
-  (CPU fallback is not allowed);
+  (CPU fallback is not allowed). Only this GPU check must prove GPU execution;
+  the NumPy and native CPU backends in the oracle lanes are parity references;
 - an oracle lane failed: stored density/selection and model cases, or a
   seeded `Study.ask()` proposal SHA-256 or winner list differs between upstream
   NumPy, native CPU and GPU.

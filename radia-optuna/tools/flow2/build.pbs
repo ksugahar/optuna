@@ -19,6 +19,7 @@ exec >run.log 2>&1
 phase=allocation
 trap 'rc=$?; printf "phase=%s\nexit_code=%s\n" "$phase" "$rc" > terminal.txt' EXIT
 test "$(uname -m)" = aarch64
+python3.12 -c 'import json,os,socket,sys; json.dump({"run":sys.argv[1],"pbs_jobid":os.environ["PBS_JOBID"],"node":socket.gethostname()},open("job.json","w"),indent=2)' "$RUN"
 (cd "$JOB_ROOT" && sha256sum --quiet -c inputs.sha256)
 sha=$(python3.12 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_sha"])' "$JOB_ROOT/owner.json")
 python3.12 - "$JOB_ROOT/owner.json" <<'PY'
