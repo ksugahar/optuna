@@ -48,21 +48,21 @@ SIMULINK_SOURCES = (
 DOC_SOURCES = (PACKAGE_ROOT / "OPTUNA_SIMULINK_LAB.md", PACKAGE_ROOT / "NATIVE_BUILD.md")
 
 
-LINUX_PROFILE = "linux-python-gpu"
+LINUX_PROFILES = ("linux-python-gpu", "linux-python-cpu")
 
 
 def build_profile() -> str:
-    """Return the staged receipt profile; Linux builds only the Python-only route."""
+    """Return the staged receipt profile; Linux builds only the Python-only routes."""
     profile = None
     if BUILD_RECEIPT.exists():
         profile = json.loads(BUILD_RECEIPT.read_text(encoding="utf-8")).get("profile")
     if sys.platform == "linux":
-        if profile != LINUX_PROFILE:
+        if profile not in LINUX_PROFILES:
             raise RuntimeError(
                 "A Linux wheel requires the receipt staged by tools/build_linux_python.py "
-                f"(profile {LINUX_PROFILE!r}); found {profile!r}."
+                f"(profile in {LINUX_PROFILES!r}); found {profile!r}."
             )
-        return LINUX_PROFILE
+        return profile
     if profile is not None:
         raise RuntimeError(f"Receipt profile {profile!r} is valid only on Linux.")
     return "windows-full"
@@ -72,8 +72,8 @@ class build_py(_build_py):
     """Copy one canonical source tree; do not maintain a package-local fork."""
 
     def run(self) -> None:
-        if build_profile() == LINUX_PROFILE:
-            # Python/pybind11 GPU route only: no MEX, MATLAB or Simulink payload.
+        if build_profile() in LINUX_PROFILES:
+            # Python/pybind11 CPU or GPU route only: no MEX, MATLAB or Simulink payload.
             # The wheel keeps the exact-ABI extension, its receipt and the oracles.
             missing = [path for path in (NATIVE_SOURCE, BUILD_RECEIPT, *ORACLE_SOURCES)
                        if not path.exists()]
@@ -140,7 +140,7 @@ class build_ext(_build_ext):
         if not expected or hashlib.sha256(NATIVE_SOURCE.read_bytes()).hexdigest()!=expected:
             raise RuntimeError("Missing/tampered exact-ABI native extension")
         # The Python-only Linux route carries no MEX.
-        if (build_profile() != LINUX_PROFILE
+        if (build_profile() not in LINUX_PROFILES
                 and hashlib.sha256(MEX_SOURCE.read_bytes()).hexdigest()!=receipt["mex_sha256"]):
             raise RuntimeError("MEX does not match the shared-object build receipt")
         target=Path(self.get_ext_fullpath("radia_optuna._optuna_kernels"))

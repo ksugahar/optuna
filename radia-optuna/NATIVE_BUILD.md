@@ -10,7 +10,7 @@ environment with pybind11 3.0.2, CMake, and Ninja. Pass the absolute nvcc 12.8
 and host C++ compiler paths and the architecture of the allocated GPU:
 
 ```sh
-python tools/build_linux_python.py --build-dir /job/optuna-build \
+python tools/build_linux_python.py --profile gpu --build-dir /job/optuna-build \
   --nvcc /toolkit/bin/nvcc --cxx /compiler/bin/g++ --cuda-architectures 100
 python validation_test/validate_kernels.py --backend cpu \
   --build-receipt /job/optuna-build/python-build.json --report /job/optuna-cpu.json
@@ -25,7 +25,13 @@ receipt without host paths (`profile: linux-python-gpu`) as
 `src/radia_optuna/native_build.json`. With that receipt, `setup.py` builds a
 Python-only Linux wheel (extension, receipt and oracles; no MEX, MATLAB or
 Simulink). The Flow2 route in `tools/flow2/README.md` builds this wheel under
-PBS and validates the installed wheel on the GPU. Linux wheels are job-local
+PBS and validates the installed wheel on the GPU.
+
+A Linux host without CUDA uses `--profile cpu --cxx /compiler/bin/g++` (no
+`--nvcc` or architectures). `native/optuna_host.cpp` compiles the same kernel
+source with the host compiler; the CPU equations are unchanged and every GPU
+entry point raises. Its receipt has `profile: linux-python-cpu`, and the Flow2
+Type I lane validates and times that wheel. Linux wheels are job-local
 qualification artifacts and are never published: publication accepts only
 `win_amd64` wheels.
 

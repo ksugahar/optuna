@@ -135,7 +135,12 @@ PYBIND11_MODULE(_optuna_kernels,m) {
     m.def("shutdown",&optuna_cuda::shutdown_runtime);
     m.def("statistics",[]{
         const auto s=optuna_cuda::statistics();py::dict d;
-        d["build_route"]="nvcc-shared-library";d["cuda_device"]=s.device;
+#ifdef OPTUNA_HOST_ONLY
+        d["build_route"]="host-cxx-shared-library";
+#else
+        d["build_route"]="nvcc-shared-library";
+#endif
+        d["cuda_device"]=s.device;
         d["density_launches"]=s.density_launches;d["selection_launches"]=s.selection_launches;
         d["model_build_launches"]=s.model_build_launches;d["model_reuses"]=s.model_reuses;
         d["host_to_device_bytes"]=s.host_to_device_bytes;d["device_to_host_bytes"]=s.device_to_host_bytes;

@@ -1,13 +1,20 @@
 #!/bin/bash
-# Build the radia-optuna Linux Python GPU wheel from the staged exact source.
-# Submit: qsub -q <queue> -v JOB_ROOT=<root>,RUN=<build-N> build.pbs
-#PBS -l gpu=1
+# Build a radia-optuna Linux Python wheel from the staged exact source.
+# PROFILE=gpu (default): Type II (aarch64), nvcc 12.8 CUDA backend.
+#   qsub -q t2-dev -l gpu=1 -v JOB_ROOT=<root>,RUN=<build-N> build.pbs
+# PROFILE=cpu: Type I (x86_64), host C++ only, no CUDA; type1.pbs runs it as a step.
 #PBS -l walltime=00:40:00
 #PBS -j oe
 #PBS -r n
 set -Eeuo pipefail
 umask 077
 : "${JOB_ROOT:?}" "${RUN:?}"
+profile=${PROFILE:-gpu}
+case $profile in
+  gpu) machine=aarch64 ;;
+  cpu) machine=x86_64 ;;
+  *) echo "PROFILE must be gpu or cpu" >&2; exit 2 ;;
+esac
 cuda=${CUDA_HOME_FLOW2:-/home/center/opt/aarch64/cores/cuda/12.8}
 cxx=${CXX_FLOW2:-/usr/bin/g++}
 arch=${CUDA_ARCH_FLOW2:-100}
@@ -18,7 +25,7 @@ cd "$run"
 exec >run.log 2>&1
 phase=allocation
 trap 'rc=$?; printf "phase=%s\nexit_code=%s\n" "$phase" "$rc" > terminal.txt' EXIT
-test "$(uname -m)" = aarch64
+test "$(uname -m)" = "$machine"
 python3.12 -c 'import json,os,socket,sys; json.dump({"run":sys.argv[1],"pbs_jobid":os.environ["PBS_JOBID"],"node":socket.gethostname()},open("job.json","w"),indent=2)' "$RUN"
 (cd "$JOB_ROOT" && sha256sum --quiet -c inputs.sha256)
 sha=$(python3.12 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_sha"])' "$JOB_ROOT/owner.json")
@@ -34,11 +41,17 @@ export OMP_NUM_THREADS=$threads PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
 unset PYTHONPATH
 phase=environment
 python3.12 -m venv venv
-export PATH="$run/venv/bin:$cuda/bin:$PATH"
+if [ "$profile" = gpu ]; then
+  export PATH="$run/venv/bin:$cuda/bin:$PATH"
+  "$cuda/bin/nvcc" --version > nvcc.txt
+  toolchain=(--nvcc "$cuda/bin/nvcc" --cuda-architectures "$arch")
+else
+  export PATH="$run/venv/bin:$PATH"
+  toolchain=()   # CUDA-free: no CUDA tool on PATH or in the build
+fi
 python -m pip install -q --no-index --require-hashes --find-links "$JOB_ROOT/wheelhouse-build" \
   -r "$JOB_ROOT/source/radia-optuna/tools/flow2/requirements-build.txt"
 python -m pip freeze > freeze.txt
-"$cuda/bin/nvcc" --version > nvcc.txt
 "$cxx" -dumpfullversion > cxx.txt
 phase=checkout
 git clone -q --no-hardlinks "$JOB_ROOT/source" src   # independent tree per build
@@ -47,8 +60,8 @@ test "$(git -C src rev-parse HEAD)" = "$sha"
 SOURCE_DATE_EPOCH=$(git -C src log -1 --format=%ct)
 export SOURCE_DATE_EPOCH
 phase=native-build
-python src/radia-optuna/tools/build_linux_python.py --build-dir "$run/build" \
-  --nvcc "$cuda/bin/nvcc" --cxx "$cxx" --cuda-architectures "$arch"
+python src/radia-optuna/tools/build_linux_python.py --profile "$profile" \
+  --build-dir "$run/build" --cxx "$cxx" "${toolchain[@]}"
 phase=wheel
 python -m pip wheel -q --no-index --no-build-isolation --no-deps -w dist src/radia-optuna
 wheels=(dist/*.whl)

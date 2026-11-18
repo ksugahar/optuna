@@ -1,7 +1,19 @@
 #include "optuna_cuda.hpp"
 #include "optuna_runtime.hpp"
+// nvcc builds the CPU and GPU backends. optuna_host.cpp compiles this file
+// with a host C++ compiler for CUDA-free CPU builds; GPU entry points then fail.
+#if defined(__CUDACC__)
+#define OPTUNA_WITH_CUDA 1
+#define OPTUNA_HOST_DEVICE __host__ __device__
 #include <cuda_runtime.h>
 #include <cub/device/device_segmented_radix_sort.cuh>
+#elif defined(OPTUNA_HOST_ONLY)
+#define OPTUNA_WITH_CUDA 0
+#define OPTUNA_HOST_DEVICE
+#include <math.h> // global isfinite/erfc overloads, as CUDA headers provide
+#else
+#error "Compile with nvcc, or through optuna_host.cpp for a CUDA-free CPU build"
+#endif
 #include <algorithm>
 #include <cfloat>
 #include <climits>
@@ -16,14 +28,16 @@
 namespace optuna_cuda {
 namespace {
 Statistics stats;
-bool gpu_enabled = true;
+bool gpu_enabled = OPTUNA_WITH_CUDA;
 RuntimeHooks runtime{};
 std::size_t active_buffers = 0;
+#if OPTUNA_WITH_CUDA
 void check(cudaError_t code, const char* operation) {
     if (code != cudaSuccess)
         throw std::runtime_error(std::string("Optuna CUDA ") + operation +
                                  ": " + cudaGetErrorString(code));
 }
+#endif
 std::size_t product(std::size_t a, std::size_t b) {
     if (b && a > std::numeric_limits<std::size_t>::max() / b)
         throw std::overflow_error("Optuna CUDA allocation size overflow");
@@ -130,6 +144,7 @@ struct Buffer {
         return reinterpret_cast<T*>(static_cast<unsigned char*>(data) + offset);
     }
 };
+#if OPTUNA_WITH_CUDA
 bool upload(Buffer& target, const void* source, std::size_t bytes) {
     const auto* input = static_cast<const unsigned char*>(source);
     std::size_t first = 0, last = bytes;
@@ -158,6 +173,7 @@ void download(void* target, const void* source, std::size_t bytes) {
     if (bytes) check(cudaMemcpy(target, source, bytes, cudaMemcpyDeviceToHost), "download");
     stats.device_to_host_bytes += bytes;
 }
+#endif
 struct DeviceEstimator {
     std::size_t weights, mu, sigma, probabilities, kernels, choices;
     double low, high, step;
@@ -198,7 +214,7 @@ struct Packed {
         }
     }
 };
-__host__ __device__ double log_mass(double lower, double upper) {
+OPTUNA_HOST_DEVICE double log_mass(double lower, double upper) {
     constexpr double inv = 0.70710678118654752440;
     double mass;
     if (upper <= 0.0) mass = 0.5 * (erfc(-upper * inv) - erfc(-lower * inv));
@@ -206,7 +222,7 @@ __host__ __device__ double log_mass(double lower, double upper) {
     else mass = 0.5 * (erf(upper * inv) - erf(lower * inv));
     return log(fmax(mass, DBL_MIN));
 }
-__host__ __device__ double component(const DeviceEstimator& e, const double* data,
+OPTUNA_HOST_DEVICE double component(const DeviceEstimator& e, const double* data,
                             double sample, std::size_t kernel, const double* normalization = nullptr) {
     if (e.categorical) {
         const auto choice = static_cast<std::size_t>(sample) - 1;
@@ -226,6 +242,7 @@ __host__ __device__ double component(const DeviceEstimator& e, const double* dat
     return -0.5 * z * z - 0.91893853320467274178 -
         (prepared ? normalization[e.log_sigma + kernel] : log(sigma)) - denominator;
 }
+#if OPTUNA_WITH_CUDA
 __global__ void prepare_density(const DeviceEstimator* estimators, const double* data, double* normalization) {
     const auto& e = estimators[blockIdx.x];
     if (e.categorical) return;
@@ -435,6 +452,7 @@ __global__ void select_best(const double* scores, std::size_t count, std::size_t
     }
     if (lane == 0) *result = invalid[0] ? count : indices[0];
 }
+#endif
 // Share component equations with CUDA; parallelize candidates only. Ordered
 // per-candidate summation and first-maximum selection preserve oracle behavior.
 std::vector<double> host_pdf(const std::vector<double>& samples,
@@ -498,6 +516,7 @@ std::vector<double> host_pdf(const std::vector<double>& samples,
     stats.cpu_max_density_threads = std::max(stats.cpu_max_density_threads, used_threads);
     return result;
 }
+#if OPTUNA_WITH_CUDA
 void initialize() {
     if (!runtime.initialize) throw std::logic_error("Optuna runtime adapter not installed");
     runtime.initialize();
@@ -525,6 +544,10 @@ void launch(Buffer& arena, std::size_t samples, std::size_t count, std::size_t d
     check(cudaGetLastError(), "launch density");
     ++stats.density_launches;
 }
+#endif
+[[noreturn]] void no_cuda() {
+    throw std::runtime_error("Optuna native build has no CUDA backend; use the cpu backend");
+}
 }
 class PreparedModel {
 public:
@@ -547,6 +570,10 @@ ModelConstruction build_model(const std::vector<double>& observations,
     const std::vector<double>& weights, const std::vector<ModelDimension>& dimensions,
     double prior_weight, bool endpoints, bool host_sampling) {
     if (!gpu_enabled) throw std::logic_error("GPU model construction requires explicit GPU mode");
+#if !OPTUNA_WITH_CUDA
+    (void)observations; (void)weights; (void)dimensions; (void)prior_weight;
+    (void)endpoints; (void)host_sampling; no_cuda();
+#else
     initialize();
     const auto dims = dimensions.size();
     if (!dims || dims > static_cast<std::size_t>(INT_MAX) || observations.size() % dims ||
@@ -665,10 +692,14 @@ ModelConstruction build_model(const std::vector<double>& observations,
         }
     }
     return result;
+#endif
 }
 std::vector<double> log_pdf(const std::vector<double>& samples,
                             const std::vector<Estimator>& estimators) {
     if (!gpu_enabled) return host_pdf(samples, estimators);
+#if !OPTUNA_WITH_CUDA
+    no_cuda();
+#else
     initialize();
     Packed packed(estimators, true);
     if (samples.size() % estimators.size()) throw std::invalid_argument("Optuna CUDA sample shape");
@@ -693,6 +724,7 @@ std::vector<double> log_pdf(const std::vector<double>& samples,
     for (double value : result)
         if (!std::isfinite(value)) throw std::runtime_error("Optuna CUDA density is nonfinite");
     return result;
+#endif
 }
 std::size_t best(const std::vector<double>& candidates,
                  const std::vector<Estimator>& below, const std::vector<Estimator>& above) {
@@ -711,6 +743,9 @@ std::size_t best(const std::vector<double>& candidates,
         ++stats.cpu_selection_calls;
         return result;
     }
+#if !OPTUNA_WITH_CUDA
+    no_cuda();
+#else
     initialize();
     if (below.empty() || below.size() != above.size() || candidates.empty() || candidates.size() % below.size())
         throw std::invalid_argument("Optuna CUDA candidate shape");
@@ -784,9 +819,11 @@ std::size_t best(const std::vector<double>& candidates,
         upper_model->accept();
     }
     return result;
+#endif
 }
 bool use_gpu() { return gpu_enabled; }
 void set_gpu(bool enabled) {
+    if (enabled && !OPTUNA_WITH_CUDA) no_cuda();
     if (!enabled) release_cached_memory();
     gpu_enabled = enabled;
 }

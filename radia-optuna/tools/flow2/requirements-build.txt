@@ -1,7 +1,7 @@
-# Hash-pinned build inputs for the Flow2 Linux Python GPU wheel (aarch64, CPython 3.12).
+# Hash-pinned build inputs for the Flow2 Linux Python wheels (CPython 3.12; one hash per platform wheel: aarch64 Type II, x86_64 Type I).
 # Install with: pip install --no-index --require-hashes --find-links <wheelhouse> -r this-file
-cmake==4.4.5 --hash=sha256:25fc8469e67857124ef10c002331c0ab416eb7b8d9e1d6e4c58e84e730013ece
-ninja==1.13.2 --hash=sha256:d775a5e43e9088f507a6250d57fcf5678eb31268c545feb5064ffeee33735622
+cmake==4.4.5 --hash=sha256:25fc8469e67857124ef10c002331c0ab416eb7b8d9e1d6e4c58e84e730013ece --hash=sha256:85625a9b6d5e88ff99c7eb79123d85570844e77ac076366cf75c609cc0b1b579
+ninja==1.13.2 --hash=sha256:d775a5e43e9088f507a6250d57fcf5678eb31268c545feb5064ffeee33735622 --hash=sha256:65a24341b5ac09fcadcc37082660be40a94174e51a937fabf6e2cae26225fa2c
 packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
 pybind11==3.0.2 --hash=sha256:f8a6500548919cc33bcd220d5f984688326f574fa97f1107f2f4fdb4c6fb019f
 setuptools==84.2.1 --hash=sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2

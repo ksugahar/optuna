@@ -312,9 +312,14 @@ def main():
     parser.add_argument("--calls", type=int, default=12)
     parser.add_argument("--installed-wheel", action="store_true",
                         help="require the native module from an installed wheel, not this checkout")
+    parser.add_argument("--backends", nargs="+", choices=("numpy", "cpu", "gpu"),
+                        default=["numpy", "cpu", "gpu"],
+                        help="upstream NumPy is the reference and must come first")
     args = parser.parse_args()
     if args.calls < 1:
         parser.error("--calls must be positive")
+    if args.backends[0] != "numpy" or len(set(args.backends)) != len(args.backends) or len(args.backends) < 2:
+        parser.error("--backends must start with numpy and name each native backend once")
 
     from radia_optuna.kernels import load
 
@@ -336,7 +341,9 @@ def main():
         oracle_sha256=sha(ROOT / "oracles/optuna50_cuda_oracle.json"),
         node=socket.gethostname(), affinity=sorted(os.sched_getaffinity(0)),
         allocation=os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID"),
-        gpu=subprocess.check_output(["nvidia-smi", "-L"], text=True).strip(),
+        gpu=(subprocess.check_output(["nvidia-smi", "-L"], text=True).strip()
+             if "gpu" in args.backends else None),
+        backends=args.backends, build_route=kernels.statistics()["build_route"],
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
         omp_threads=os.environ.get("OMP_NUM_THREADS"), colocated_jobs=args.colocated_job,
         optuna=optuna.__version__, numpy=np.__version__, cases=[], ok=False,
@@ -345,7 +352,7 @@ def main():
         case_runner = primitive_case if args.lane == "primitives" else ask_case
         for candidates, components in ((24, 32), (24, 256), (256, 256), (4096, 512)):
             reference = None
-            for backend in ("numpy", "cpu", "gpu"):
+            for backend in args.backends:
                 before = kernels.statistics()
                 record = case_runner(kernels, backend, candidates, components, args.calls)
                 report["cases"].append(dict(
@@ -367,7 +374,7 @@ def main():
                                 break
                         raise RuntimeError(f"Seeded proposal mismatch: {backend}, {candidates}, {components}")
         if args.lane == "primitives":
-            for backend in ("numpy", "cpu", "gpu"):
+            for backend in args.backends:
                 before = kernels.statistics()
                 for record in chain(formal_cases(kernels, backend, args.calls),
                                     formal_models(kernels, backend, args.calls)):

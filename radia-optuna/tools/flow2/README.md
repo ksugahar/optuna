@@ -1,12 +1,18 @@
-Flow2 Linux Python GPU route
-============================
+Flow2 Linux Python routes
+=========================
 
-This route builds the radia-optuna Linux Python/pybind11 GPU wheel on Flow2
-(Grace + GB200, aarch64) from one exact commit. It then installs that same
-SHA-256-verified wheel into a clean environment and checks it on the GPU
-against the pinned upstream Optuna oracle. Flow2 is outside GitHub Actions and
-has no runner. The wheel is a job-local qualification artifact and is never
-published.
+Flow2 is the primary Linux environment for radia-optuna. Two lanes build the
+Linux Python/pybind11 wheel from one exact commit, install that same
+SHA-256-verified wheel into a clean environment and check it against the pinned
+upstream Optuna oracle:
+
+- Type II (Grace + GB200, aarch64): GPU profile, built on `t2-dev`, validated
+  on a full GB200 on `t2-share`.
+- Type I (x86_64): CUDA-free CPU profile on `t1-single`, reference agreement
+  and timings at 1, 16 and 48 threads (see "Type I lane" below).
+
+Flow2 is outside GitHub Actions and has no runner. Wheels are job-local
+qualification artifacts and are never published.
 
 Fixed inputs
 ------------
@@ -34,12 +40,14 @@ Steps
    `SOURCE` is a git URL or a bundle that contains the commit.
 
    ```sh
-   tools/flow2/stage.sh SOURCE SHA "$HOME/<jobs>/<root>" "<owner>" "<request>" 6
+   tools/flow2/stage.sh SOURCE SHA "$HOME/<jobs>/<root>" "<owner>" "<request>" 6 aarch64
    ```
 
    This clones the exact commit, downloads the hash-pinned wheels for
-   aarch64/CPython 3.12, and writes `owner.json` (owner, request, source SHA,
-   deadline) and `inputs.sha256`. Compute jobs need no network access.
+   CPython 3.12 on the named machine (`aarch64` for Type II, `x86_64` for
+   Type I), and writes `owner.json` (owner, request, source SHA, machine,
+   deadline) and `inputs.sha256`. Compute jobs need no network access. Each
+   requirement pins one hash per platform wheel.
 
 2. Build on `t2-dev` and validate on a GB200 on `t2-share`. `t2-dev` gives
    4 CPUs and a MIG slice of the GPU, allows one hour and runs one job per
@@ -49,8 +57,8 @@ Steps
 
    ```sh
    t=$ROOT/source/radia-optuna/tools/flow2
-   b1=$(qsub -q t2-dev -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
-   b2=$(qsub -q t2-dev -W depend=afterok:$b1 -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
+   b1=$(qsub -q t2-dev -l gpu=1 -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
+   b2=$(qsub -q t2-dev -l gpu=1 -W depend=afterok:$b1 -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
    qsub -q t2-share -W depend=afterok:$b1:$b2 -v JOB_ROOT=$ROOT,RUN=validate-1,BUILD=build-1 "$t/validate.pbs"
    ```
 
@@ -72,6 +80,42 @@ Steps
    Copy `result.json` and each run directory (without `venv/`, `src/` and
    `build/`) to private evidence storage. Verify the SHA-256 values after the
    transfer, and only then delete the job-owned root and confirm it is gone.
+
+Type I lane
+-----------
+
+Type I has no CUDA, and the kernels need none: `build.pbs` with `PROFILE=cpu`
+compiles `native/optuna_host.cpp` (the shared kernel source) with the system
+`/usr/bin/g++` (GCC 11.5, the same host compiler as the Type II nvcc build).
+The CPU equations do not call BLAS, so no MKL or other library enters the
+extension. The `gpu` backend of this build raises.
+
+`t1-single` allocates a whole node (384 CPUs by default), so one job runs every
+step, each in its own run directory with the same PBS job ID:
+
+```sh
+tools/flow2/stage.sh SOURCE SHA "$HOME/<jobs>/<root1>" "<owner>" "<request>" 6 x86_64
+qsub -q t1-single -v JOB_ROOT=$ROOT1 "$ROOT1/source/radia-optuna/tools/flow2/type1.pbs"
+python3.12 $t/summarize.py $ROOT1 --builds build-1 build-2 --validate validate-1 \
+  --profile cpu --threads 1 16 48 --report $ROOT1/result.json
+```
+
+`type1.pbs` runs build-1 and build-2, then `validate_cpu.sh` on build-1's
+verified wheel. That step runs `validate_kernels.py --backend cpu` (stored
+oracle cases; it also checks that the gpu backend is rejected), records
+`topology.json` (`lscpu -J`, `numactl --hardware` when present, and the chosen
+CPUs), then runs both oracle lanes with `--backends numpy cpu` at 1, 16 and 48
+threads. Each thread count is pinned with `taskset` to one hardware thread per
+physical core, filled socket by socket and NUMA node by NUMA node, with
+`OMP_PROC_BIND=close` and `OMP_PLACES=cores`. Each lane report records its
+affinity and `OMP_NUM_THREADS`.
+
+The CPU summary fails when the build is not the host-only route or accepts the
+gpu backend, when a lane ran off its core selection or thread count, when an
+oracle lane failed, or when a seeded `Study.ask()` proposal differs between
+upstream NumPy and native CPU or across thread counts. `result.json` lists the
+median time per operation for every thread count, lane, size and backend. These
+timings are diagnostic: they never gate.
 
 Gates and failure handling
 --------------------------

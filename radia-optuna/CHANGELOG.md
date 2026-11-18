@@ -8,7 +8,13 @@
 - `setup.py` builds a Python-only Linux wheel when `build_linux_python.py` has
   staged its public receipt (`profile: linux-python-gpu`). Such wheels are not
   published; publication still accepts only `win_amd64`.
-- `build_linux_python.py` rejects a checkout with tracked changes.
+- `build_linux_python.py` rejects a checkout with tracked changes and takes
+  `--profile gpu|cpu`. The CUDA-free `cpu` profile (`native/optuna_host.cpp`,
+  CMake `OPTUNA_LINUX_CUDA=OFF`) builds the unchanged CPU kernels with the host
+  C++ compiler; its GPU entry points raise. Receipt profile `linux-python-cpu`.
+- Flow2 Type I lane (`tools/flow2/type1.pbs`, `t1-single`): two CUDA-free
+  builds, installed-wheel reference agreement, and 1/16/48-thread timings pinned
+  to recorded physical cores and NUMA nodes.
 
 ## 5.1.0.2 (2026-11-18)
 

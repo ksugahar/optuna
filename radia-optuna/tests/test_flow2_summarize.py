@@ -117,3 +117,71 @@ def test_missing_gpu_execution_fails(root):
     make_validation(root, "build-2", cuda_device=-1)
     failures = run(root)["failures"]
     assert any("CPU fallback" in f for f in failures), failures
+
+
+THREADS = (1, 16, 48)
+
+
+def make_cpu_validation(root, build, rejection="Optuna native build has no CUDA backend; use the cpu backend"):
+    run = root / "validate-1"
+    run.mkdir()
+    wheel = root / build / "dist" / WHEEL
+    write_json(run / "validated-wheel.json", {
+        "build": build, "wheel": WHEEL, "sha256": digest(wheel),
+        "receipt_sha256": digest(root / build / "public-receipt.json"), "source_sha": SOURCE})
+    write_json(run / "kernels-cpu.json", {
+        "ok": True, "backend": "cpu", "profile": "linux-python-cpu", "cases": [],
+        "gpu_backend_rejection": rejection,
+        "statistics": {"build_route": "host-cxx-shared-library", "cuda_device": -1, "density_launches": 0}})
+    selections = {str(n): {"cpus": list(range(n)), "sockets": [0], "numa_nodes": [0, 1]} for n in THREADS}
+    write_json(run / "topology.json", {
+        "node": "t1", "allowed_cpus": list(range(384)), "physical_cores": 384, "sockets": [0, 1],
+        "numa_nodes": list(range(8)), "selections": selections, "policy": "p"})
+    for n in THREADS:
+        for lane in ("primitives", "ask"):
+            cases = [{"candidates": 24, "initial_components": 32, "backend": backend,
+                      "samples_ns": [n, n + 2] if lane == "ask" else {"log_pdf": [n], "best": [n]},
+                      **({"proposal_sha256": "c" * 64} if lane == "ask" else {})}
+                     for backend in ("numpy", "cpu")]
+            write_json(run / f"{lane}-t{n}.json", {
+                "ok": True, "backends": ["numpy", "cpu"], "build_route": "host-cxx-shared-library",
+                "affinity": list(range(n)), "omp_threads": str(n), "cases": cases})
+    finish(run, "300.jobm")
+    return run
+
+
+def run_cpu(root):
+    return summarize.summarize(root, ["build-1", "build-2"], "validate-1", "cpu", THREADS)
+
+
+def test_cpu_route_records_threads_and_agreement(root):
+    make_cpu_validation(root, "build-1")
+    result = run_cpu(root)
+    assert result["failures"] == [], result["failures"]
+    performance = result["validation"]["performance"]
+    assert {(p["threads"], p["lane"], p["backend"]) for p in performance} == {
+        (n, lane, backend) for n in THREADS for lane in ("primitives", "ask") for backend in ("numpy", "cpu")}
+    assert [p["median_ns"] for p in performance if p["lane"] == "ask" and p["threads"] == 16][0] == {"ask": 17}
+
+
+def test_cpu_lane_off_its_core_selection_fails(root):
+    run = make_cpu_validation(root, "build-1")
+    report = json.loads((run / "ask-t16.json").read_text())
+    write_json(run / "ask-t16.json", dict(report, affinity=list(range(48))))
+    failures = run_cpu(root)["failures"]
+    assert any("ask-t16" in f and "16-core selection" in f for f in failures), failures
+
+
+def test_cpu_build_accepting_gpu_fails(root):
+    make_cpu_validation(root, "build-1", rejection=None)
+    failures = run_cpu(root)["failures"]
+    assert any("rejects the gpu backend" in f for f in failures), failures
+
+
+def test_cpu_proposals_differing_across_threads_fail(root):
+    run = make_cpu_validation(root, "build-1")
+    report = json.loads((run / "ask-t48.json").read_text())
+    report["cases"][1]["proposal_sha256"] = "d" * 64
+    write_json(run / "ask-t48.json", report)
+    failures = run_cpu(root)["failures"]
+    assert any("seeded ask proposals differ" in f for f in failures), failures
