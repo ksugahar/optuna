@@ -20,7 +20,14 @@ python validation_test/validate_kernels.py --backend gpu \
 
 Architecture 100 is the example for a Blackwell device. The two validation
 processes compare the exact built binding against the stored upstream oracle.
-The development build does not produce a PyPI Linux wheel.
+The build requires a checkout without tracked changes. It also stages a public
+receipt without host paths (`profile: linux-python-gpu`) as
+`src/radia_optuna/native_build.json`. With that receipt, `setup.py` builds a
+Python-only Linux wheel (extension, receipt and oracles; no MEX, MATLAB or
+Simulink). The Flow2 route in `tools/flow2/README.md` builds this wheel under
+PBS and validates the installed wheel on the GPU. Linux wheels are job-local
+qualification artifacts and are never published: publication accepts only
+`win_amd64` wheels.
 
 `native/optuna_cuda.cu` contains the existing CPU/OpenMP and CUDA equations.
 The package entry compiles it once with explicit MATLAB-bundled nvcc12.8 /
@@ -44,15 +51,14 @@ The package build entry is `tools/build_native.ps1`, with explicit `-Python`,
 kernel module. Run `validation_test/validate_kernels.py --backend cpu` with
 that `python-build.json` receipt. Stage `matlab` requires the resulting
 `-PythonVerification` receipt and rejects changed archive/objects/source.
-Development follows one order (2026-11-17). The build host implements and
-checks the CPU base in both bindings, pybind11 and MATLAB, and CPU CI runs
-there. Flow2 then develops the Python/pybind11 GPU route (Linux, no MATLAB or
-Simulink), and A100 develops the MATLAB GPU route. In CI, the build job and
-the CPU MATLAB HDF5 storage job run on the build-host runner (`100`, `cpu`);
-the build job compiles CUDA but executes only CPU checks. The GPU acceptance
-and MATLAB Engine jobs run on the A100 runner (`gpu-a100`). The build
-job builds the release wheel once and links its build receipt to the CPU
-Python proof. GPU acceptance, MATLAB Engine and CPU MATLAB HDF5 storage
+Development follows one order. The build host implements and checks the
+CPU base. Flow2 develops the Python/pybind11 GPU route (Linux, no MATLAB or
+Simulink) outside CI, with no runner. A100 builds and checks the Windows GPU
+and MATLAB/MEX routes. The current native build requires CUDA, so every CI job
+that compiles it, and the CPU MATLAB HDF5 storage job that uses its wheel, run
+on the A100 runner (`gpu-a100`) together with GPU acceptance and MATLAB Engine.
+The build job builds the release wheel once and links its build receipt to the
+CPU Python proof. GPU acceptance, MATLAB Engine and CPU MATLAB HDF5 storage
 install the same wheel and verify its SHA-256 against the build job's output.
 GPU acceptance records its GPU Python proof and binding parity. Source
 contracts run separately on hosted Windows.

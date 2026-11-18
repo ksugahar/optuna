@@ -38,9 +38,14 @@ def main():
         sys.path.insert(0,str(ROOT/'src'))
     from radia_optuna import layout
     import radia_optuna
-    expected_layout = 'wheel' if a.installed_wheel else 'checkout'
-    assert layout() == expected_layout, 'Wrong Optuna package layout'
     package_dir = Path(radia_optuna.__file__).resolve().parent
+    expected_layout = 'wheel' if a.installed_wheel else 'checkout'
+    if a.installed_wheel:
+        assert ROOT.resolve() not in package_dir.parents, 'Installed wheel resolved inside the checkout'
+        installed = json.loads((package_dir/'native_build.json').read_text(encoding='utf-8'))
+        if installed.get('profile') == 'linux-python-gpu':
+            expected_layout = 'missing'  # Python-only Linux wheel: no MATLAB tree.
+    assert layout() == expected_layout, ('Wrong Optuna package layout', layout(), expected_layout)
     before=current_context() if a.backend=='cpu' else None
     from radia_optuna.kernels import load
     k=load(a.backend)

@@ -310,6 +310,8 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--colocated-job", action="append", default=[])
     parser.add_argument("--calls", type=int, default=12)
+    parser.add_argument("--installed-wheel", action="store_true",
+                        help="require the native module from an installed wheel, not this checkout")
     args = parser.parse_args()
     if args.calls < 1:
         parser.error("--calls must be positive")
@@ -322,7 +324,9 @@ def main():
     commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
     receipt = json.loads(args.build_receipt.read_text())
     kernels = load("cpu")
-    binary = Path(kernels.__file__)
+    binary = Path(kernels.__file__).resolve()
+    if args.installed_wheel and ROOT.resolve() in binary.parents:
+        raise RuntimeError(f"Native module resolved inside the checkout: {binary}")
     binary_sha = sha(binary)
     if commit != receipt["source_sha"] or binary_sha != receipt["python_extension_sha256s"].get(binary.name):
         raise RuntimeError("Native build receipt mismatch")
@@ -331,7 +335,7 @@ def main():
         benchmark_sha256=sha(Path(__file__)), build_receipt_sha256=sha(args.build_receipt),
         oracle_sha256=sha(ROOT / "oracles/optuna50_cuda_oracle.json"),
         node=socket.gethostname(), affinity=sorted(os.sched_getaffinity(0)),
-        allocation=os.environ.get("SLURM_JOB_ID"),
+        allocation=os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID"),
         gpu=subprocess.check_output(["nvidia-smi", "-L"], text=True).strip(),
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
         omp_threads=os.environ.get("OMP_NUM_THREADS"), colocated_jobs=args.colocated_job,

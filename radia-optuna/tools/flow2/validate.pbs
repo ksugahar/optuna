@@ -1,0 +1,55 @@
+#!/bin/bash
+# Install one SHA-256-verified wheel into a clean venv and run the GPU checks.
+# Submit: qsub -q <queue> -v JOB_ROOT=<root>,RUN=<validate-N>,BUILD=<build-N> validate.pbs
+#PBS -l gpu=1
+#PBS -l walltime=00:30:00
+#PBS -j oe
+#PBS -r n
+set -Eeuo pipefail
+umask 077
+: "${JOB_ROOT:?}" "${RUN:?}" "${BUILD:?}"
+expect_name=${EXPECT_GPU_NAME:-GB200}
+expect_cc=${EXPECT_GPU_CC:-10.0}
+threads=${OMP_THREADS_FLOW2:-8}
+run=$JOB_ROOT/$RUN
+mkdir "$run"
+cd "$run"
+exec >run.log 2>&1
+phase=allocation
+trap 'rc=$?; printf "phase=%s\nexit_code=%s\n" "$phase" "$rc" > terminal.txt' EXIT
+test "$(uname -m)" = aarch64
+(cd "$JOB_ROOT" && sha256sum --quiet -c inputs.sha256)
+grep -qx 'phase=complete' "$JOB_ROOT/$BUILD/terminal.txt"
+(cd "$JOB_ROOT/$BUILD/dist" && sha256sum -c ../wheel.sha256) > wheel-verify.txt
+python3.12 - "$JOB_ROOT/owner.json" <<'PY'
+import datetime, json, sys
+deadline = datetime.datetime.fromisoformat(json.load(open(sys.argv[1]))["deadline_utc"])
+assert datetime.datetime.now(datetime.timezone.utc) < deadline, "past the owner.json deadline"
+PY
+cores=$(python3.12 -c 'import os,sys; a=sorted(os.sched_getaffinity(0)); n=int(sys.argv[1]); assert len(a)>=n; print(",".join(map(str,a[:n])))' "$threads")
+taskset -pc "$cores" $$ > affinity.txt
+echo "$cores" > cpus.txt
+export OMP_NUM_THREADS=$threads OMP_DYNAMIC=FALSE OPENBLAS_NUM_THREADS=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+unset PYTHONPATH
+phase=environment
+python3.12 -m venv venv   # clean environment: only hash-pinned wheels below
+export PATH="$run/venv/bin:$PATH"
+src=$JOB_ROOT/source/radia-optuna
+python -m pip install -q --no-index --require-hashes --find-links "$JOB_ROOT/wheelhouse-validate" \
+  -r "$src/tools/flow2/requirements-validate.txt"
+python -m pip install -q --no-index --no-deps "$JOB_ROOT/$BUILD"/dist/*.whl
+python -m pip freeze > freeze.txt
+receipt=$(python -I -c 'import pathlib, radia_optuna; print(pathlib.Path(radia_optuna.__file__).with_name("native_build.json"))')
+case $receipt in "$JOB_ROOT/source"/*) echo "radia_optuna resolved inside the checkout" >&2; exit 1;; esac
+phase=device
+python "$src/tools/flow2/device_identity.py" --expect-name "$expect_name" \
+  --expect-compute-cap "$expect_cc" --report device.json
+phase=kernels-gpu
+python "$src/validation_test/validate_kernels.py" --backend gpu --installed-wheel \
+  --build-receipt "$receipt" --report kernels-gpu.json
+for lane in primitives ask; do
+  phase=oracle-$lane
+  python "$src/validation_test/benchmark_flow2_ask.py" "$lane" --installed-wheel \
+    --build-receipt "$receipt" --report "$lane.json"
+done
+phase=complete

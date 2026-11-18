@@ -1,0 +1,58 @@
+#!/bin/bash
+# Build the radia-optuna Linux Python GPU wheel from the staged exact source.
+# Submit: qsub -q <queue> -v JOB_ROOT=<root>,RUN=<build-N> build.pbs
+#PBS -l gpu=1
+#PBS -l walltime=00:40:00
+#PBS -j oe
+#PBS -r n
+set -Eeuo pipefail
+umask 077
+: "${JOB_ROOT:?}" "${RUN:?}"
+cuda=${CUDA_HOME_FLOW2:-/home/center/opt/aarch64/cores/cuda/12.8}
+cxx=${CXX_FLOW2:-/usr/bin/g++}
+arch=${CUDA_ARCH_FLOW2:-100}
+threads=${OMP_THREADS_FLOW2:-8}
+run=$JOB_ROOT/$RUN
+mkdir "$run"
+cd "$run"
+exec >run.log 2>&1
+phase=allocation
+trap 'rc=$?; printf "phase=%s\nexit_code=%s\n" "$phase" "$rc" > terminal.txt' EXIT
+test "$(uname -m)" = aarch64
+(cd "$JOB_ROOT" && sha256sum --quiet -c inputs.sha256)
+sha=$(python3.12 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_sha"])' "$JOB_ROOT/owner.json")
+python3.12 - "$JOB_ROOT/owner.json" <<'PY'
+import datetime, json, sys
+deadline = datetime.datetime.fromisoformat(json.load(open(sys.argv[1]))["deadline_utc"])
+assert datetime.datetime.now(datetime.timezone.utc) < deadline, "past the owner.json deadline"
+PY
+cores=$(python3.12 -c 'import os,sys; a=sorted(os.sched_getaffinity(0)); n=int(sys.argv[1]); assert len(a)>=n; print(",".join(map(str,a[:n])))' "$threads")
+taskset -pc "$cores" $$ > affinity.txt
+echo "$cores" > cpus.txt
+export OMP_NUM_THREADS=$threads PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+unset PYTHONPATH
+phase=environment
+python3.12 -m venv venv
+export PATH="$run/venv/bin:$cuda/bin:$PATH"
+python -m pip install -q --no-index --require-hashes --find-links "$JOB_ROOT/wheelhouse-build" \
+  -r "$JOB_ROOT/source/radia-optuna/tools/flow2/requirements-build.txt"
+python -m pip freeze > freeze.txt
+"$cuda/bin/nvcc" --version > nvcc.txt
+"$cxx" -dumpfullversion > cxx.txt
+phase=checkout
+git clone -q --no-hardlinks "$JOB_ROOT/source" src   # independent tree per build
+git -C src checkout -q --detach "$sha"
+test "$(git -C src rev-parse HEAD)" = "$sha"
+SOURCE_DATE_EPOCH=$(git -C src log -1 --format=%ct)
+export SOURCE_DATE_EPOCH
+phase=native-build
+python src/radia-optuna/tools/build_linux_python.py --build-dir "$run/build" \
+  --nvcc "$cuda/bin/nvcc" --cxx "$cxx" --cuda-architectures "$arch"
+phase=wheel
+python -m pip wheel -q --no-index --no-build-isolation --no-deps -w dist src/radia-optuna
+wheels=(dist/*.whl)
+test ${#wheels[@]} -eq 1
+(cd dist && sha256sum ./*.whl) > wheel.sha256
+cp src/radia-optuna/src/radia_optuna/native_build.json public-receipt.json
+cp build/python-build.json private-receipt.json
+phase=complete

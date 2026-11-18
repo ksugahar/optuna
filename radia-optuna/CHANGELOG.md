@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Flow2 Linux Python GPU route (`tools/flow2/`): staged exact source and
+  hash-pinned wheels, two independent PBS builds, and installed-wheel GPU checks
+  against the pinned upstream oracle, with a summarized result JSON.
+- `setup.py` builds a Python-only Linux wheel when `build_linux_python.py` has
+  staged its public receipt (`profile: linux-python-gpu`). Such wheels are not
+  published; publication still accepts only `win_amd64`.
+- `build_linux_python.py` rejects a checkout with tracked changes.
+
 ## 5.1.0.2 (2026-11-18)
 
 - The publication gate accepts the radia-only fourth version component.

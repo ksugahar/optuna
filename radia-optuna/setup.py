@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import shutil
 import hashlib
 import sysconfig
@@ -47,10 +48,44 @@ SIMULINK_SOURCES = (
 DOC_SOURCES = (PACKAGE_ROOT / "OPTUNA_SIMULINK_LAB.md", PACKAGE_ROOT / "NATIVE_BUILD.md")
 
 
+LINUX_PROFILE = "linux-python-gpu"
+
+
+def build_profile() -> str:
+    """Return the staged receipt profile; Linux builds only the Python-only route."""
+    profile = None
+    if BUILD_RECEIPT.exists():
+        profile = json.loads(BUILD_RECEIPT.read_text(encoding="utf-8")).get("profile")
+    if sys.platform == "linux":
+        if profile != LINUX_PROFILE:
+            raise RuntimeError(
+                "A Linux wheel requires the receipt staged by tools/build_linux_python.py "
+                f"(profile {LINUX_PROFILE!r}); found {profile!r}."
+            )
+        return LINUX_PROFILE
+    if profile is not None:
+        raise RuntimeError(f"Receipt profile {profile!r} is valid only on Linux.")
+    return "windows-full"
+
+
 class build_py(_build_py):
     """Copy one canonical source tree; do not maintain a package-local fork."""
 
     def run(self) -> None:
+        if build_profile() == LINUX_PROFILE:
+            # Python/pybind11 GPU route only: no MEX, MATLAB or Simulink payload.
+            # The wheel keeps the exact-ABI extension, its receipt and the oracles.
+            missing = [path for path in (NATIVE_SOURCE, BUILD_RECEIPT, *ORACLE_SOURCES)
+                       if not path.exists()]
+            if missing:
+                raise RuntimeError("radia-optuna Linux wheel inputs are missing:\n"
+                                   + "\n".join(f"  - {path}" for path in missing))
+            super().run()
+            oracle_dir = Path(self.build_lib) / "radia_optuna" / "oracles"
+            oracle_dir.mkdir(parents=True, exist_ok=True)
+            for source in ORACLE_SOURCES:
+                shutil.copy2(source, oracle_dir / source.name)
+            return
         missing = [
             path for path in (
                 OPTUNA_SOURCE,
@@ -104,7 +139,9 @@ class build_ext(_build_ext):
         expected=receipt["python_extension_sha256s"].get(NATIVE_SOURCE.name)
         if not expected or hashlib.sha256(NATIVE_SOURCE.read_bytes()).hexdigest()!=expected:
             raise RuntimeError("Missing/tampered exact-ABI native extension")
-        if hashlib.sha256(MEX_SOURCE.read_bytes()).hexdigest()!=receipt["mex_sha256"]:
+        # The Python-only Linux route carries no MEX.
+        if (build_profile() != LINUX_PROFILE
+                and hashlib.sha256(MEX_SOURCE.read_bytes()).hexdigest()!=receipt["mex_sha256"]):
             raise RuntimeError("MEX does not match the shared-object build receipt")
         target=Path(self.get_ext_fullpath("radia_optuna._optuna_kernels"))
         target.parent.mkdir(parents=True,exist_ok=True)

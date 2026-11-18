@@ -1,4 +1,10 @@
-"""Build the Linux Python binding with an explicitly selected CUDA toolchain."""
+"""Build the Linux Python binding with an explicitly selected CUDA toolchain.
+
+The private receipt (with compiler paths and commands) is written to the build
+directory. A public receipt without host paths is staged as
+src/radia_optuna/native_build.json with profile "linux-python-gpu", which the
+Python-only Linux wheel route in setup.py requires.
+"""
 
 import argparse
 import hashlib
@@ -28,6 +34,12 @@ def main():
     for compiler in (args.nvcc, args.cxx):
         if not compiler.is_absolute() or not compiler.is_file():
             parser.error(f"an existing absolute compiler path is required: {compiler}")
+    tracked_changes = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if tracked_changes:
+        parser.error("the source checkout has tracked changes; build only an exact commit:\n" + tracked_changes)
     build = args.build_dir.resolve()
     build.mkdir(parents=True, exist_ok=False)
     pybind = subprocess.check_output(
@@ -60,6 +72,22 @@ def main():
     }
     (build / "python-build.json").write_text(
         json.dumps(receipt, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
+
+    def last_line(command):
+        return subprocess.check_output(command, text=True).strip().splitlines()[-1]
+
+    public = {key: receipt[key] for key in (
+        "source_sha", "recipe_hashes", "source_hashes", "archive_sha256", "python_extension_sha256s")}
+    public.update(
+        schema="radia.optuna.linux-python-build.v1",
+        profile="linux-python-gpu",
+        cuda_architectures=args.cuda_architectures,
+        nvcc_version=last_line([str(args.nvcc), "--version"]),
+        cxx_version=last_line([str(args.cxx), "-dumpfullversion"]),
+    )
+    (ROOT / "src/radia_optuna/native_build.json").write_text(
+        json.dumps(public, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
 
 
