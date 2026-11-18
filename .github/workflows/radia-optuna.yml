@@ -34,27 +34,8 @@ jobs:
           python -m pip install pytest packaging $pin
       - run: python -m pytest tests -q
 
-  cpu-ci:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
-    runs-on: [self-hosted, Windows, X64, '100', cpu]
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - shell: pwsh
-        run: |
-          $venv = Join-Path $env:RUNNER_TEMP "radia-optuna-cpu-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          py -3.12 -m venv $venv
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          (Join-Path $venv 'Scripts') | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-      - shell: pwsh
-        run: |
-          $pin = python -c "import json; print('optuna=='+json.load(open('src/radia_optuna/upstream.json', encoding='utf-8'))['optuna'])"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m pip install pytest packaging $pin
-      - run: python -m pytest tests -q
-
   build-test:
-    needs: [source-contracts, cpu-ci]
+    needs: source-contracts
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
     # This wheel includes CUDA-linked Python and MATLAB bindings.
     runs-on: [self-hosted, Windows, X64, gpu-a100]
