@@ -11,8 +11,10 @@ upstream Optuna oracle:
 - Type I (x86_64): CUDA-free CPU profile on `t1-single`, reference agreement
   and timings at 1, 16 and 48 threads (see "Type I lane" below).
 
-Flow2 is outside GitHub Actions and has no runner. Wheels are job-local
-qualification artifacts and are never published.
+Flow2 is outside GitHub Actions and has no runner. Linux wheels are never
+uploaded to PyPI. Qualified wheels reach Flow2 users only through the lab
+distribution described under "Distribution to Flow2 users" below. This route is
+the reference that other packages follow for Flow2 distribution.
 
 Fixed inputs
 ------------
@@ -167,3 +169,42 @@ rebuilds. The CUDA-free Type I build reports its own comparison.
 
 Elapsed times recorded by the oracle lanes describe that job only. They are
 not performance measurements.
+
+Distribution to Flow2 users
+---------------------------
+
+Flow2 users (for example students running their own jobs under their own
+accounts) install wheels from the lab's shared distribution folder, never from
+a job root or a build tree. The folder location is lab configuration and is not
+recorded in this repository.
+
+1. Eligibility. Only a release whose exact source commit is merged, and whose
+   Type II and Type I qualification are both complete at that commit, is
+   distributed. Completion means:
+   - every PBS job ID is recorded and every run is `complete` with exit code 0;
+   - both `result.json` summaries pass;
+   - the wheels, logs, result JSON and artifacts are recovered to private
+     evidence storage, with SHA-256 matching at both ends.
+   A missing or mismatched hash, a failed gate or an unrecorded job means no
+   distribution. Placing files also needs the release owner's explicit approval.
+2. Content. One folder per package and source commit, holding only:
+   - the Type II (`linux_aarch64`) and Type I (`linux_x86_64`) wheels, each the
+     exact file the validation job installed (`validated-wheel.json`);
+   - `SHA256SUMS` for every file in the folder;
+   - `requirements-validate.txt` from this directory (hash-pinned runtime);
+   - PBS examples for user jobs: queue, resources, a job-local venv, and
+     `pip install --no-index --require-hashes` followed by the wheel;
+   - a short README with the source SHA, PBS job IDs, Python 3.12 and the
+     profile of each wheel.
+   The distribution folder keeps only the latest verified release; superseded
+   releases are removed after their replacement is verified. Wheels are never
+   rebuilt for distribution.
+3. Acceptance before announcement. From a separate user account, without
+   Administrator paths, fetch the folder, run `sha256sum -c SHA256SUMS`,
+   install into a fresh venv on each node type, and run each PBS example to
+   completion. Record the job IDs and outputs with the release evidence. Until
+   then the release is not announced.
+4. Version control. Distribution files are not committed to a source tree.
+   When the folder sits inside a checkout, it must be a path that Git ignores.
+   Attaching the same files to a GitHub release is optional. When attached,
+   they are the same bytes and `SHA256SUMS`.

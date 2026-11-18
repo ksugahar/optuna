@@ -31,9 +31,10 @@ A Linux host without CUDA uses `--profile cpu --cxx /compiler/bin/g++` (no
 `--nvcc` or architectures). `native/optuna_host.cpp` compiles the same kernel
 source with the host compiler; the CPU equations are unchanged and every GPU
 entry point raises. Its receipt has `profile: linux-python-cpu`, and the Flow2
-Type I lane validates and times that wheel. Linux wheels are job-local
-qualification artifacts and are never published: publication accepts only
-`win_amd64` wheels.
+Type I lane validates and times that wheel. Linux wheels are never uploaded
+to PyPI (PyPI publication accepts only `win_amd64` wheels). Qualified Linux
+wheels reach Flow2 users only through the lab distribution in
+`tools/flow2/README.md`.
 
 `native/optuna_cuda.cu` contains the existing CPU/OpenMP and CUDA equations.
 The package entry compiles it once with explicit MATLAB-bundled nvcc12.8 /
