@@ -41,15 +41,16 @@ Steps
    aarch64/CPython 3.12, and writes `owner.json` (owner, request, source SHA,
    deadline) and `inputs.sha256`. Compute jobs need no network access.
 
-2. Submit two independent builds and one validation on `t2-share`, which
-   allocates a GB200. `t2-dev` gave a MIG slice of the GPU, runs one job per
-   user and allows at most one hour, so use it only for a quick smoke test.
-   The builds may run in parallel; the validation waits for both:
+2. Build on `t2-dev` and validate on a GB200 on `t2-share`. `t2-dev` gives
+   4 CPUs and a MIG slice of the GPU, allows one hour and runs one job per
+   user, so the two builds are chained. A build took under a minute there.
+   If a build does not fit `t2-dev`, report it; do not move it to another
+   queue silently. The GB200 validation waits for both builds:
 
    ```sh
    t=$ROOT/source/radia-optuna/tools/flow2
-   b1=$(qsub -q t2-share -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
-   b2=$(qsub -q t2-share -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
+   b1=$(qsub -q t2-dev -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
+   b2=$(qsub -q t2-dev -W depend=afterok:$b1 -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
    qsub -q t2-share -W depend=afterok:$b1:$b2 -v JOB_ROOT=$ROOT,RUN=validate-1,BUILD=build-1 "$t/validate.pbs"
    ```
 
