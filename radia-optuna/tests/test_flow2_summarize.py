@@ -18,7 +18,7 @@ summarize = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(summarize)
 
 SOURCE = "a" * 40
-WHEEL = "radia_optuna-5.1.0.2-cp312-cp312-linux_aarch64.whl"
+WHEEL = "radia_optuna-0.0.0-cp312-cp312-linux_aarch64.whl"
 
 
 def digest(path):
