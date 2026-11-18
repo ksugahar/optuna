@@ -37,9 +37,8 @@ jobs:
   build-test:
     needs: source-contracts
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
-    # CPU base on the build host: compiles both bindings (CUDA included,
-    # no GPU execution) and runs only CPU checks.
-    runs-on: [self-hosted, Windows, X64, '100', cpu]
+    # This wheel includes CUDA-linked Python and MATLAB bindings.
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
     timeout-minutes: 45
     outputs:
       wheel-sha256: ${{ steps.wheel.outputs.sha256 }}
@@ -173,7 +172,7 @@ jobs:
   installed-wheel-hdf5-storage:
     name: radia-optuna installed-wheel HDF5 storage (CPU MATLAB)
     needs: [build-test]
-    runs-on: [self-hosted, Windows, X64, '100', cpu]
+    runs-on: [self-hosted, Windows, X64, gpu-a100]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
