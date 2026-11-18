@@ -90,12 +90,12 @@ compiles `native/optuna_host.cpp` (the shared kernel source) with the system
 The CPU equations do not call BLAS, so no MKL or other library enters the
 extension. The `gpu` backend of this build raises.
 
-`t1-single` allocates a whole node (384 CPUs by default), so one job runs every
+`t1-single` allocates a whole node (it requires `-l node=1`; 384 CPUs), so one job runs every
 step, each in its own run directory with the same PBS job ID:
 
 ```sh
 tools/flow2/stage.sh SOURCE SHA "$HOME/<jobs>/<root1>" "<owner>" "<request>" 6 x86_64
-qsub -q t1-single -v JOB_ROOT=$ROOT1 "$ROOT1/source/radia-optuna/tools/flow2/type1.pbs"
+qsub -q t1-single -l node=1 -v JOB_ROOT=$ROOT1 "$ROOT1/source/radia-optuna/tools/flow2/type1.pbs"
 python3.12 $t/summarize.py $ROOT1 --builds build-1 build-2 --validate validate-1 \
   --profile cpu --threads 1 16 48 --report $ROOT1/result.json
 ```

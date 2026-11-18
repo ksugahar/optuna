@@ -2,7 +2,7 @@
 # Type I (x86_64) CUDA-free CPU route in one whole-node t1-single job: two
 # independent builds, then reference agreement and 1/16/48-thread timing of the
 # SHA-256-verified wheel of build-1. Every step keeps its own run directory.
-# Submit: qsub -q t1-single -v JOB_ROOT=<root> type1.pbs
+# Submit: qsub -q t1-single -l node=1 -v JOB_ROOT=<root> type1.pbs
 #PBS -l walltime=02:00:00
 #PBS -j oe
 #PBS -r n
