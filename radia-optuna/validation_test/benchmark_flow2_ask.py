@@ -355,9 +355,14 @@ def main():
             for backend in args.backends:
                 before = kernels.statistics()
                 record = case_runner(kernels, backend, candidates, components, args.calls)
+                after = kernels.statistics()
+                # Absolute team witness: the running maximum cannot be reduced to a delta.
+                team = ({"last_density_threads": after["cpu_last_density_threads"],
+                         "max_density_threads_in_process": after["cpu_max_density_threads"]}
+                        if backend == "cpu" else None)
                 report["cases"].append(dict(
                     record, candidates=candidates, initial_components=components, backend=backend,
-                    statistics_delta=stats_delta(before, kernels.statistics()),
+                    statistics_delta=stats_delta(before, after), native_team=team,
                 ))
                 if args.lane == "ask":
                     digest = record["proposal_sha256"]

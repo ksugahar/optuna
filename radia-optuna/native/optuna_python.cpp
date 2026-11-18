@@ -149,6 +149,7 @@ PYBIND11_MODULE(_optuna_kernels,m) {
         d["preparation_launches"]=s.preparation_launches;
         d["model_download_bytes"]=s.model_download_bytes;
         d["cpu_max_density_threads"]=s.cpu_max_density_threads;
+        d["cpu_last_density_threads"]=s.cpu_last_density_threads;
         d["taskmanager"]=false;
         return d;
     });

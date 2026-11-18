@@ -38,6 +38,7 @@ struct Statistics {
     std::uint64_t cpu_density_calls = 0, cpu_selection_calls = 0;
     std::uint64_t cpu_parallel_density_calls = 0;
     int cpu_max_density_threads = 0;
+    int cpu_last_density_threads = 0; // team size of the most recent host density
     std::uint64_t device_allocation_calls = 0, workspace_reuses = 0;
     std::uint64_t avoided_upload_bytes = 0;
     std::size_t cached_device_bytes = 0;

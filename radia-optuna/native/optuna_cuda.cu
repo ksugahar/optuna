@@ -514,6 +514,7 @@ std::vector<double> host_pdf(const std::vector<double>& samples,
     ++stats.cpu_density_calls;
     if (used_threads > 1) ++stats.cpu_parallel_density_calls;
     stats.cpu_max_density_threads = std::max(stats.cpu_max_density_threads, used_threads);
+    stats.cpu_last_density_threads = used_threads;
     return result;
 }
 #if OPTUNA_WITH_CUDA

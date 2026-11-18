@@ -12,6 +12,7 @@ import statistics
 import zipfile
 
 SKIP = {"venv", "src", "build", "__pycache__"}
+TEAM_CHECK_SIZE = "4096x512"  # candidates >= 256: parallel host density
 
 
 def sha(path):
@@ -140,8 +141,15 @@ def cpu_checks(run, validation, failures, threads):
                 size = f"{case['candidates']}x{case['initial_components']}"
                 if lane == "ask":
                     validation["ask_proposal_sha256"][f"t{n}:{size}:{case['backend']}"] = case["proposal_sha256"]
+                team = case.get("native_team")
                 validation["performance"].append(dict(
-                    threads=n, lane=lane, size=size, backend=case["backend"], median_ns=medians(case)))
+                    threads=n, lane=lane, size=size, backend=case["backend"], median_ns=medians(case),
+                    native_team=team))
+                # The largest size always enters the parallel density region; its
+                # absolute team must equal the requested thread count.
+                if case["backend"] == "cpu" and size == TEAM_CHECK_SIZE and (
+                        team is None or team["last_density_threads"] != n):
+                    failures.append(f"{name} {size}: native density team {team} != {n} threads")
     if not all(validation["lane_ok"].values()):
         failures.append(f"oracle lanes failed: {validation['lane_ok']}")
     digests = {}

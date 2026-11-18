@@ -108,10 +108,15 @@ CPUs), then runs both oracle lanes with `--backends numpy cpu` at 1, 16 and 48
 threads. Each thread count is pinned with `taskset` to one hardware thread per
 physical core, filled socket by socket and NUMA node by NUMA node, with
 `OMP_PROC_BIND=close` and `OMP_PLACES=cores`. Each lane report records its
-affinity and `OMP_NUM_THREADS`.
+affinity and `OMP_NUM_THREADS`, and every native CPU case records the absolute
+team size of its last host density (`native_team`), because the in-process
+maximum cannot be reduced to a per-case delta. The 4096x512 case always enters
+the parallel density region, so its team must equal the requested thread
+count; smaller cases report the team they actually used.
 
 The CPU summary fails when the build is not the host-only route or accepts the
-gpu backend, when a lane ran off its core selection or thread count, when an
+gpu backend, when a lane ran off its core selection or thread count, when the
+4096x512 native team differs from the thread count, when an
 oracle lane failed, or when a seeded `Study.ask()` proposal differs between
 upstream NumPy and native CPU or across thread counts. `result.json` lists the
 median time per operation for every thread count, lane, size and backend. These
