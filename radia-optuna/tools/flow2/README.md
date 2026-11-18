@@ -41,14 +41,16 @@ Steps
    aarch64/CPython 3.12, and writes `owner.json` (owner, request, source SHA,
    deadline) and `inputs.sha256`. Compute jobs need no network access.
 
-2. Submit two independent builds and one validation. On `t2-dev` only one job
-   runs per user at a time, so chain them:
+2. Submit two independent builds and one validation on `t2-share`, which
+   allocates a GB200. `t2-dev` gave a MIG slice of the GPU, runs one job per
+   user and allows at most one hour, so use it only for a quick smoke test.
+   The builds may run in parallel; the validation waits for both:
 
    ```sh
    t=$ROOT/source/radia-optuna/tools/flow2
-   b1=$(qsub -q t2-dev -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
-   b2=$(qsub -q t2-dev -W depend=afterok:$b1 -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
-   qsub -q t2-dev -W depend=afterok:$b2 -v JOB_ROOT=$ROOT,RUN=validate-1,BUILD=build-1 "$t/validate.pbs"
+   b1=$(qsub -q t2-share -v JOB_ROOT=$ROOT,RUN=build-1 "$t/build.pbs")
+   b2=$(qsub -q t2-share -v JOB_ROOT=$ROOT,RUN=build-2 "$t/build.pbs")
+   qsub -q t2-share -W depend=afterok:$b1:$b2 -v JOB_ROOT=$ROOT,RUN=validate-1,BUILD=build-1 "$t/validate.pbs"
    ```
 
    Each build clones its own tree, sets `SOURCE_DATE_EPOCH` to the commit
@@ -103,6 +105,13 @@ Reproducibility
 the wheels are identical, the route gives bit-identical independent rebuilds
 on this toolchain. Otherwise it gives provenance reproducibility: the same
 commit, pinned inputs and recipe, with the differing members listed.
+
+Observed on CUDA 12.8 / GCC 11.5: two builds of one commit produced extensions
+of equal size that differ in content. nvcc names its intermediate file
+`tmpxft_<process id>_...` and embeds that name in the host object (for example
+in the static initializer symbol), so the extension, the archive, the wheel
+receipt and `RECORD` differ between builds. The route therefore gives
+provenance reproducibility, not bit-identical rebuilds.
 
 Elapsed times recorded by the oracle lanes describe that job only. They are
 not performance measurements.
