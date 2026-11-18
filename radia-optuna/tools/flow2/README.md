@@ -152,11 +152,13 @@ on this toolchain. Otherwise it gives provenance reproducibility: the same
 commit, pinned inputs and recipe, with the differing members listed.
 
 Observed on CUDA 12.8 / GCC 11.5: two builds of one commit produced extensions
-of equal size that differ in content. nvcc names its intermediate file
-`tmpxft_<process id>_...` and embeds that name in the host object (for example
-in the static initializer symbol), so the extension, the archive, the wheel
-receipt and `RECORD` differ between builds. The route therefore gives
-provenance reproducibility, not bit-identical rebuilds.
+of equal size that differ in content; the archive, the wheel receipt and
+`RECORD` differ as a consequence. One identified difference is that nvcc names
+its intermediate file `tmpxft_<process id>_...` and embeds that name in the
+host object (for example in the static initializer symbol). Other differing
+bytes were not isolated, so this name is not claimed to explain them all. The
+GPU route therefore gives provenance reproducibility, not bit-identical
+rebuilds. The CUDA-free Type I build reports its own comparison.
 
 Elapsed times recorded by the oracle lanes describe that job only. They are
 not performance measurements.
