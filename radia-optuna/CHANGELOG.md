@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Upstream watch (`tools/upstream_watch.py`, workflow
+  `radia-optuna-upstream-watch.yml`): a read-only daily and manual check of
+  official Optuna stable tags against the pin. It reports the pinned and latest
+  tag/SHA pairs and the changed paths grouped by TPE, pruners, storage and other
+  APIs, with inferred review points and compare links. No update, update
+  available, missing pin tag, incomplete comparison and network failure each
+  have their own exit status. It never changes the pin or publishes anything.
+
 ## 5.1.0.3 (2026-11-19)
 
 - Flow2 Linux Python GPU route (`tools/flow2/`): staged exact source and

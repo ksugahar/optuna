@@ -14,8 +14,11 @@ value.
 
 ## 0. Decide whether to move
 
-1. Read the upstream release notes and the diff between the current pin and
-   the new release. Note especially any change to samplers, the RNG, TPE, the
+1. Run `python tools/upstream_watch.py` (or read the latest run of the
+   `radia-optuna upstream watch` workflow). It names the newer stable tag,
+   both commit SHAs and the changed paths by component. Its review points are
+   inferred from paths only. Then read the upstream release notes and the diff
+   between the current pin and the new release. Note especially any change to samplers, the RNG, TPE, the
    search space, storage or the public API.
 2. Check that `optuna-mcp` has a release compatible with the new Optuna
    version. The MCP oracle records the Optuna and optuna-mcp versions together,

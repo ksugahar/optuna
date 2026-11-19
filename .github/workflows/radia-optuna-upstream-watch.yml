@@ -1,0 +1,57 @@
+name: radia-optuna upstream watch
+
+# Read-only check for a stable official Optuna release newer than the pin in
+# radia-optuna/src/radia_optuna/upstream.json. It writes a report to the job
+# summary and fails the run when an update is found or the check cannot
+# finish, so that the result is visible. It never changes the pin, pushes,
+# opens issues or pull requests, or publishes anything.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radia-optuna-upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: ${{ github.repository == 'ksugahar/optuna' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: radia-optuna
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: radia-optuna
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare the pin with upstream stable releases
+        id: watch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          python -I tools/upstream_watch.py --report-json "$RUNNER_TEMP/upstream-watch.json"
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Report the outcome
+        env:
+          CODE: ${{ steps.watch.outputs.code }}
+        run: |
+          case "$CODE" in
+            0) echo "The pin is the latest stable Optuna release." ;;
+            1) echo "::warning title=Upstream Optuna update::A newer stable Optuna release exists; see the job summary."; exit 1 ;;
+            3) echo "::error title=Pin tag missing::No official tag matches the pin; see the job summary."; exit 1 ;;
+            4) echo "::error title=Incomplete comparison::The changed-file list is incomplete; see the job summary."; exit 1 ;;
+            *) echo "::error title=Upstream watch failed::Network, HTTP or format failure (exit $CODE); see the job summary."; exit 1 ;;
+          esac
