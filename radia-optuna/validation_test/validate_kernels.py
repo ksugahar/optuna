@@ -9,10 +9,15 @@ import ctypes
 
 ROOT=Path(__file__).resolve().parents[1]
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
-def current_context():
+def current_context(cuda_free=False):
     # Independent non-creating driver observation, not the kernel's counters.
-    driver=(ctypes.WinDLL('nvcuda.dll',winmode=0x800) if sys.platform=='win32'
-            else ctypes.CDLL('libcuda.so.1'))
+    try:
+        driver=(ctypes.WinDLL('nvcuda.dll',winmode=0x800) if sys.platform=='win32'
+                else ctypes.CDLL('libcuda.so.1'))
+    except OSError:
+        # Only a CUDA-free build may run where no NVIDIA driver exists.
+        if cuda_free:return {'driver_status':'absent','current_context':0}
+        raise
     get=driver.cuCtxGetCurrent
     get.argtypes=[ctypes.POINTER(ctypes.c_void_p)];get.restype=ctypes.c_int
     context=ctypes.c_void_p();status=get(ctypes.byref(context))
@@ -34,17 +39,24 @@ def main():
     p.add_argument('--report',type=Path,required=True)
     p.add_argument('--installed-wheel', action='store_true')
     a=p.parse_args()
+    build=json.loads(a.build_receipt.read_text())
+    cuda_free=build.get('profile')=='linux-python-cpu'
+    if cuda_free and a.backend=='gpu':p.error('a CUDA-free build has no gpu backend to verify')
     if not a.installed_wheel:
         sys.path.insert(0,str(ROOT/'src'))
     from radia_optuna import layout
     import radia_optuna
-    expected_layout = 'wheel' if a.installed_wheel else 'checkout'
-    assert layout() == expected_layout, 'Wrong Optuna package layout'
     package_dir = Path(radia_optuna.__file__).resolve().parent
-    before=current_context() if a.backend=='cpu' else None
+    expected_layout = 'wheel' if a.installed_wheel else 'checkout'
+    if a.installed_wheel:
+        assert ROOT.resolve() not in package_dir.parents, 'Installed wheel resolved inside the checkout'
+        installed = json.loads((package_dir/'native_build.json').read_text(encoding='utf-8'))
+        if installed.get('profile') in ('linux-python-gpu','linux-python-cpu'):
+            expected_layout = 'missing'  # Python-only Linux wheel: no MATLAB tree.
+    assert layout() == expected_layout, ('Wrong Optuna package layout', layout(), expected_layout)
+    before=current_context(cuda_free) if a.backend=='cpu' else None
     from radia_optuna.kernels import load
     k=load(a.backend)
-    build=json.loads(a.build_receipt.read_text())
     binary=Path(k.__file__).resolve()
     if not a.installed_wheel:
         assert package_dir==(ROOT/'src/radia_optuna').resolve(),'Wrong source package origin'
@@ -70,10 +82,19 @@ def main():
             'below_bits':[struct.pack('>d',x).hex() for x in below],
             'above_bits':[struct.pack('>d',x).hex() for x in above],'best_index_one_based':selected+1})
     assert sha(oracle)==frozen,'Stored oracle changed'
+    gpu_rejection=None
+    if cuda_free:
+        try:k.log_pdf('gpu',samples,lower)
+        except RuntimeError as error:gpu_rejection=str(error)
+        else:raise AssertionError('CUDA-free build accepted the gpu backend')
+        assert 'no CUDA backend' in gpu_rejection,gpu_rejection
+        k.log_pdf('cpu',samples,lower) # restore the cpu mode after the rejected switch
     stats=k.statistics()
+    expected_route='host-cxx-shared-library' if cuda_free else 'nvcc-shared-library'
+    assert stats['build_route']==expected_route,(stats['build_route'],expected_route)
     if a.backend=='cpu':
         assert stats['cuda_device']==-1 and stats['density_launches']==0 and stats['host_to_device_bytes']==0
-        assert before['current_context']==0 and current_context()['current_context']==0,'CPU created a context'
+        assert before['current_context']==0 and current_context(cuda_free)['current_context']==0,'CPU created a context'
     else:assert stats['density_launches']>0 and stats['selection_launches']>0
     lifecycle=None
     if a.backend=='gpu':
@@ -85,7 +106,8 @@ def main():
     report={'schema':'radia.optuna.python-kernel-verification.v1','ok':True,'backend':a.backend,
             'source_sha':build['source_sha'],'recipe_hashes':build['recipe_hashes'],
             'lifecycle':lifecycle,
-            'CPU_driver_observation':{'before':before,'after':current_context()} if a.backend=='cpu' else None,
+            'CPU_driver_observation':{'before':before,'after':current_context(cuda_free)} if a.backend=='cpu' else None,
+            'profile':build.get('profile'),'gpu_backend_rejection':gpu_rejection,
             'source_hashes':source,'archive_sha256':build['archive_sha256'],
             'oracle_sha256':frozen,'cases':records,'statistics':stats,
             'scope':'Stored density/selection cases only; model-build, wrapper bitwise parity and MATLAB RNG remain separate gates'}

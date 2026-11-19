@@ -1,9 +1,16 @@
 """Flow2 development timing for the pinned sampler and exact native extension."""
 
+import os
+
+# The process CPU mask at launch, read before numpy, Optuna or the native module
+# load an OpenMP runtime. With OMP_PROC_BIND set, libgomp binds the initial
+# thread to its first place when it initializes, so a later read of the calling
+# thread reports only that place.
+LAUNCH_AFFINITY = sorted(os.sched_getaffinity(0))
+
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 from itertools import chain
 import socket
@@ -70,6 +77,18 @@ def time_call(function, samples):
     value = function()
     samples.append(perf_counter_ns() - start)
     return value
+
+
+def thread_affinities():
+    """CPU mask of every live thread (main and OpenMP workers) at the end of the lane."""
+    if not Path("/proc/self/task").is_dir():
+        return None
+    masks = {}
+    for task in sorted(Path("/proc/self/task").iterdir(), key=lambda p: int(p.name)):
+        for line in (task / "status").read_text().splitlines():
+            if line.startswith("Cpus_allowed_list:"):
+                masks[task.name] = line.split(":", 1)[1].strip()
+    return masks
 
 
 def stats_delta(before, after):
@@ -310,9 +329,16 @@ def main():
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--colocated-job", action="append", default=[])
     parser.add_argument("--calls", type=int, default=12)
+    parser.add_argument("--installed-wheel", action="store_true",
+                        help="require the native module from an installed wheel, not this checkout")
+    parser.add_argument("--backends", nargs="+", choices=("numpy", "cpu", "gpu"),
+                        default=["numpy", "cpu", "gpu"],
+                        help="upstream NumPy is the reference and must come first")
     args = parser.parse_args()
     if args.calls < 1:
         parser.error("--calls must be positive")
+    if args.backends[0] != "numpy" or len(set(args.backends)) != len(args.backends) or len(args.backends) < 2:
+        parser.error("--backends must start with numpy and name each native backend once")
 
     from radia_optuna.kernels import load
 
@@ -322,7 +348,9 @@ def main():
     commit = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
     receipt = json.loads(args.build_receipt.read_text())
     kernels = load("cpu")
-    binary = Path(kernels.__file__)
+    binary = Path(kernels.__file__).resolve()
+    if args.installed_wheel and ROOT.resolve() in binary.parents:
+        raise RuntimeError(f"Native module resolved inside the checkout: {binary}")
     binary_sha = sha(binary)
     if commit != receipt["source_sha"] or binary_sha != receipt["python_extension_sha256s"].get(binary.name):
         raise RuntimeError("Native build receipt mismatch")
@@ -330,9 +358,13 @@ def main():
         lane=args.lane, source_sha=commit, extension_sha256=binary_sha,
         benchmark_sha256=sha(Path(__file__)), build_receipt_sha256=sha(args.build_receipt),
         oracle_sha256=sha(ROOT / "oracles/optuna50_cuda_oracle.json"),
-        node=socket.gethostname(), affinity=sorted(os.sched_getaffinity(0)),
-        allocation=os.environ.get("SLURM_JOB_ID"),
-        gpu=subprocess.check_output(["nvidia-smi", "-L"], text=True).strip(),
+        node=socket.gethostname(), launch_affinity=LAUNCH_AFFINITY,
+        main_thread_affinity_after_load=sorted(os.sched_getaffinity(0)),
+        omp_proc_bind=os.environ.get("OMP_PROC_BIND"), omp_places=os.environ.get("OMP_PLACES"),
+        allocation=os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID"),
+        gpu=(subprocess.check_output(["nvidia-smi", "-L"], text=True).strip()
+             if "gpu" in args.backends else None),
+        backends=args.backends, build_route=kernels.statistics()["build_route"],
         cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
         omp_threads=os.environ.get("OMP_NUM_THREADS"), colocated_jobs=args.colocated_job,
         optuna=optuna.__version__, numpy=np.__version__, cases=[], ok=False,
@@ -341,12 +373,17 @@ def main():
         case_runner = primitive_case if args.lane == "primitives" else ask_case
         for candidates, components in ((24, 32), (24, 256), (256, 256), (4096, 512)):
             reference = None
-            for backend in ("numpy", "cpu", "gpu"):
+            for backend in args.backends:
                 before = kernels.statistics()
                 record = case_runner(kernels, backend, candidates, components, args.calls)
+                after = kernels.statistics()
+                # Absolute team witness: the running maximum cannot be reduced to a delta.
+                team = ({"last_density_threads": after["cpu_last_density_threads"],
+                         "max_density_threads_in_process": after["cpu_max_density_threads"]}
+                        if backend == "cpu" else None)
                 report["cases"].append(dict(
                     record, candidates=candidates, initial_components=components, backend=backend,
-                    statistics_delta=stats_delta(before, kernels.statistics()),
+                    statistics_delta=stats_delta(before, after), native_team=team,
                 ))
                 if args.lane == "ask":
                     digest = record["proposal_sha256"]
@@ -363,7 +400,7 @@ def main():
                                 break
                         raise RuntimeError(f"Seeded proposal mismatch: {backend}, {candidates}, {components}")
         if args.lane == "primitives":
-            for backend in ("numpy", "cpu", "gpu"):
+            for backend in args.backends:
                 before = kernels.statistics()
                 for record in chain(formal_cases(kernels, backend, args.calls),
                                     formal_models(kernels, backend, args.calls)):
@@ -375,6 +412,7 @@ def main():
         report["error"] = str(error)
         raise
     finally:
+        report["thread_affinities"] = thread_affinities()
         args.report.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n",
                                encoding="utf-8", newline="\n")
         kernels.shutdown()

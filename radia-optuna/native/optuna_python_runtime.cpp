@@ -1,4 +1,21 @@
 #include "optuna_runtime.hpp"
+#ifdef OPTUNA_HOST_ONLY
+#include <stdexcept>
+
+namespace optuna_cuda {
+namespace {
+// CUDA-free build: no driver is loaded and every allocation request fails.
+[[noreturn]] void unavailable() {
+    throw std::runtime_error("Optuna native build has no CUDA backend; use the cpu backend");
+}
+void initialize() { unavailable(); }
+void* allocate(std::size_t, void**) { unavailable(); }
+bool valid(void*) noexcept { return false; }
+void release(void*) noexcept {}
+}
+RuntimeHooks cuda_runtime_hooks() { return {initialize, allocate, valid, release}; }
+}
+#else
 #include <cuda.h>
 #include <cuda_runtime.h>
 #ifdef _WIN32
@@ -70,3 +87,4 @@ void release(void* owner) noexcept {
 }
 RuntimeHooks cuda_runtime_hooks() { return {initialize, allocate, valid, release}; }
 }
+#endif
