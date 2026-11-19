@@ -1,9 +1,16 @@
 """Flow2 development timing for the pinned sampler and exact native extension."""
 
+import os
+
+# The process CPU mask at launch, read before numpy, Optuna or the native module
+# load an OpenMP runtime. With OMP_PROC_BIND set, libgomp binds the initial
+# thread to its first place when it initializes, so a later read of the calling
+# thread reports only that place.
+LAUNCH_AFFINITY = sorted(os.sched_getaffinity(0))
+
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 from itertools import chain
 import socket
@@ -70,6 +77,18 @@ def time_call(function, samples):
     value = function()
     samples.append(perf_counter_ns() - start)
     return value
+
+
+def thread_affinities():
+    """CPU mask of every live thread (main and OpenMP workers) at the end of the lane."""
+    if not Path("/proc/self/task").is_dir():
+        return None
+    masks = {}
+    for task in sorted(Path("/proc/self/task").iterdir(), key=lambda p: int(p.name)):
+        for line in (task / "status").read_text().splitlines():
+            if line.startswith("Cpus_allowed_list:"):
+                masks[task.name] = line.split(":", 1)[1].strip()
+    return masks
 
 
 def stats_delta(before, after):
@@ -339,7 +358,9 @@ def main():
         lane=args.lane, source_sha=commit, extension_sha256=binary_sha,
         benchmark_sha256=sha(Path(__file__)), build_receipt_sha256=sha(args.build_receipt),
         oracle_sha256=sha(ROOT / "oracles/optuna50_cuda_oracle.json"),
-        node=socket.gethostname(), affinity=sorted(os.sched_getaffinity(0)),
+        node=socket.gethostname(), launch_affinity=LAUNCH_AFFINITY,
+        main_thread_affinity_after_load=sorted(os.sched_getaffinity(0)),
+        omp_proc_bind=os.environ.get("OMP_PROC_BIND"), omp_places=os.environ.get("OMP_PLACES"),
         allocation=os.environ.get("PBS_JOBID") or os.environ.get("SLURM_JOB_ID"),
         gpu=(subprocess.check_output(["nvidia-smi", "-L"], text=True).strip()
              if "gpu" in args.backends else None),
@@ -391,6 +412,7 @@ def main():
         report["error"] = str(error)
         raise
     finally:
+        report["thread_affinities"] = thread_affinities()
         args.report.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n",
                                encoding="utf-8", newline="\n")
         kernels.shutdown()

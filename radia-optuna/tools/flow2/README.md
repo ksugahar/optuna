@@ -109,15 +109,23 @@ oracle cases; it also checks that the gpu backend is rejected), records
 CPUs), then runs both oracle lanes with `--backends numpy cpu` at 1, 16 and 48
 threads. Each thread count is pinned with `taskset` to one hardware thread per
 physical core, filled socket by socket and NUMA node by NUMA node, with
-`OMP_PROC_BIND=close` and `OMP_PLACES=cores`. Each lane report records its
-affinity and `OMP_NUM_THREADS`, and every native CPU case records the absolute
+`OMP_PROC_BIND=close` and `OMP_PLACES=cores`. Each lane report records
+`OMP_NUM_THREADS` and three CPU masks:
+- the process mask at launch, read before any OpenMP runtime loads;
+- the main-thread mask after the native module loads;
+- the mask of every live thread at the end of the lane.
+With `OMP_PROC_BIND` set, libgomp binds the initial thread to its first place
+when it initializes, so the main-thread mask shows one CPU (observed on Flow2:
+`[0]` at 16 and 48 threads). The launch mask must equal the selection, and
+every thread mask must lie inside it. Every native CPU case also records the absolute
 team size of its last host density (`native_team`), because the in-process
 maximum cannot be reduced to a per-case delta. The 4096x512 case always enters
 the parallel density region, so its team must equal the requested thread
 count; smaller cases report the team they actually used.
 
 The CPU summary fails when the build is not the host-only route or accepts the
-gpu backend, when a lane ran off its core selection or thread count, when the
+gpu backend, when a lane launched off its core selection or thread count or a
+thread mask left the selection, when the
 4096x512 native team differs from the thread count, when an
 oracle lane failed, or when a seeded `Study.ask()` proposal differs between
 upstream NumPy and native CPU or across thread counts. `result.json` lists the
@@ -173,38 +181,75 @@ not performance measurements.
 Distribution to Flow2 users
 ---------------------------
 
-Flow2 users (for example students running their own jobs under their own
-accounts) install wheels from the lab's shared distribution folder, never from
-a job root or a build tree. The folder location is lab configuration and is not
-recorded in this repository.
+The lab distribution is the primary route for Flow2 users, for example
+students running their own jobs under their own accounts. Users install from
+the lab's shared distribution folder, never from a job root or a build tree.
+The folder location is lab configuration and is not recorded in this
+repository. Attaching the same verified files to a GitHub release is optional.
 
-1. Eligibility. Only a release whose exact source commit is merged, and whose
-   Type II and Type I qualification are both complete at that commit, is
-   distributed. Completion means:
-   - every PBS job ID is recorded and every run is `complete` with exit code 0;
-   - both `result.json` summaries pass;
+The rules in items 1 to 5 are the general Flow2 reference that other packages
+follow. "Optuna settings" at the end lists what is specific to radia-optuna.
+
+1. Eligibility. Only a release whose exact source commit is merged is
+   distributed. Every qualification lane of the package must be complete at
+   that exact commit. Evidence from an earlier commit, including a pre-merge
+   candidate, does not qualify a later merged commit, even with an equal
+   tree; the lanes run again at the merged commit. Completion means:
+   - every PBS job ID is recorded, and every run is `complete` with exit code 0;
+   - every `result.json` summary passes;
    - the wheels, logs, result JSON and artifacts are recovered to private
      evidence storage, with SHA-256 matching at both ends.
    A missing or mismatched hash, a failed gate or an unrecorded job means no
    distribution. Placing files also needs the release owner's explicit approval.
 2. Content. One folder per package and source commit, holding only:
-   - the Type II (`linux_aarch64`) and Type I (`linux_x86_64`) wheels, each the
-     exact file the validation job installed (`validated-wheel.json`);
-   - `SHA256SUMS` for every file in the folder;
-   - `requirements-validate.txt` from this directory (hash-pinned runtime);
-   - PBS examples for user jobs: queue, resources, a job-local venv, and
-     `pip install --no-index --require-hashes` followed by the wheel;
-   - a short README with the source SHA, PBS job IDs, Python 3.12 and the
-     profile of each wheel.
-   The distribution folder keeps only the latest verified release; superseded
-   releases are removed after their replacement is verified. Wheels are never
-   rebuilt for distribution.
-3. Acceptance before announcement. From a separate user account, without
-   Administrator paths, fetch the folder, run `sha256sum -c SHA256SUMS`,
-   install into a fresh venv on each node type, and run each PBS example to
-   completion. Record the job IDs and outputs with the release evidence. Until
-   then the release is not announced.
-4. Version control. Distribution files are not committed to a source tree.
+   - each project wheel, as the exact file its validation job installed
+     (`validated-wheel.json`); wheels are never rebuilt for distribution;
+   - `wheelhouse/`: the hash-pinned runtime dependency wheels for every
+     distributed architecture. These are the files the qualification jobs
+     installed from their staged wheelhouses, checked against the pinned
+     requirement files;
+   - the pinned requirement file of the runtime;
+   - PBS examples for user jobs;
+   - a short README with the source SHA, PBS job IDs, Python version and the
+     profile of each wheel;
+   - `SHA256SUMS`, covering every other file in the folder (payload files,
+     `wheelhouse/` included) and not itself.
+   The distribution folder keeps only the latest verified release. A
+   superseded release is removed after its replacement is verified.
+3. Installation. A PBS example creates a job-local venv and installs offline
+   from the folder only:
+
+   ```sh
+   (cd "$DIST" && sha256sum -c SHA256SUMS)
+   python3.12 -m venv venv
+   venv/bin/python -m pip install --no-index --require-hashes \
+     --find-links "$DIST/wheelhouse" -r "$DIST/requirements-validate.txt"
+   venv/bin/python -m pip install --no-index --no-deps "$DIST/<project wheel for this node>"
+   ```
+
+   The runtime dependencies resolve first from the hash-pinned wheelhouse.
+   The verified project wheel is then installed by its exact path with
+   `--no-deps`; its hash was checked by `SHA256SUMS`.
+4. Acceptance before announcement. From a separate user account, without
+   Administrator paths, fetch the folder and run each PBS example to
+   completion on each node type: manifest check, fresh venv, installation,
+   and one run of the package. Record the job IDs and outputs with the release
+   evidence. Until then the release is not announced.
+5. Version control. Distribution files are not committed to a source tree.
    When the folder sits inside a checkout, it must be a path that Git ignores.
-   Attaching the same files to a GitHub release is optional. When attached,
-   they are the same bytes and `SHA256SUMS`.
+
+Optuna settings (specific to radia-optuna):
+
+- Lanes: Type II (aarch64, GPU profile): two builds on `t2-dev`, GB200
+  validation on `t2-share`. Type I (x86_64, CUDA-free CPU profile): one
+  `t1-single` job (`-l node=1`) with two builds, reference agreement and
+  1/16/48-thread timings. Distributed wheels: `linux_aarch64` from the Type II
+  `validate-1` build and `linux_x86_64` from the Type I `validate-1` build.
+- Runtime: CPython 3.12. `requirements-validate.txt` pins the oracle runtime
+  (pinned upstream Optuna and its dependencies) with one hash per platform
+  wheel. `wheelhouse/` holds the union of the two staged `wheelhouse-validate`
+  directories.
+- Qualification: the gates in this README. Timings are diagnostic and never
+  gate.
+- PyPI: Linux wheels are never uploaded. PyPI publication accepts only
+  `win_amd64` wheels.

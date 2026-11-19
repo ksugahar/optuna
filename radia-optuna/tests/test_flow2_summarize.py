@@ -149,7 +149,10 @@ def make_cpu_validation(root, build, rejection="Optuna native build has no CUDA 
                      for size in ((24, 32), (4096, 512)) for backend in ("numpy", "cpu")]
             write_json(run / f"{lane}-t{n}.json", {
                 "ok": True, "backends": ["numpy", "cpu"], "build_route": "host-cxx-shared-library",
-                "affinity": list(range(n)), "omp_threads": str(n), "cases": cases})
+                "launch_affinity": list(range(n)), "omp_threads": str(n), "cases": cases,
+                # Observed on Flow2: libgomp binds the main thread to place 0 after load.
+                "main_thread_affinity_after_load": [0],
+                "thread_affinities": {str(1000 + i): str(i) for i in range(n)}})
     finish(run, "300.jobm")
     return run
 
@@ -173,9 +176,25 @@ def test_cpu_route_records_threads_and_agreement(root):
 def test_cpu_lane_off_its_core_selection_fails(root):
     run = make_cpu_validation(root, "build-1")
     report = json.loads((run / "ask-t16.json").read_text())
-    write_json(run / "ask-t16.json", dict(report, affinity=list(range(48))))
+    write_json(run / "ask-t16.json", dict(report, launch_affinity=list(range(48))))
     failures = run_cpu(root)["failures"]
-    assert any("ask-t16" in f and "16-core selection" in f for f in failures), failures
+    assert any("ask-t16: launched on" in f for f in failures), failures
+
+
+def test_cpu_thread_mask_outside_selection_fails(root):
+    run = make_cpu_validation(root, "build-1")
+    report = json.loads((run / "primitives-t16.json").read_text())
+    report["thread_affinities"]["9999"] = "16-17"
+    write_json(run / "primitives-t16.json", report)
+    failures = run_cpu(root)["failures"]
+    assert any("primitives-t16: thread masks" in f for f in failures), failures
+
+
+def test_cpu_bound_main_thread_inside_launch_mask_passes(root):
+    make_cpu_validation(root, "build-1")
+    masks = run_cpu(root)["validation"]["thread_masks"]["ask-t48"]
+    assert masks == {"launch": list(range(48)), "main_after_load": [0], "threads": 48,
+                     "cpus_used": list(range(48))}, masks
 
 
 def test_cpu_build_accepting_gpu_fails(root):

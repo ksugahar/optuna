@@ -99,6 +99,15 @@ def gpu_checks(run, validation, failures, threads):
         failures.append(f"oracle lanes failed: {validation['lane_ok']}")
 
 
+def cpu_list(text):
+    """Parse a kernel CPU list such as "0-3,8"."""
+    cpus = set()
+    for part in text.split(","):
+        low, _, high = part.partition("-")
+        cpus.update(range(int(low), int(high or low) + 1))
+    return cpus
+
+
 def medians(record):
     samples = record["samples_ns"]
     samples = samples if isinstance(samples, dict) else {"ask": samples}
@@ -115,6 +124,7 @@ def cpu_checks(run, validation, failures, threads):
                                             "numa_nodes", "selections", "policy")},
         cpu_statistics=stats, gpu_backend_rejection=kernels.get("gpu_backend_rejection"),
         stored_cases=stored_cases(kernels), lane_ok={}, ask_proposal_sha256={}, performance=[],
+        thread_masks={},
     )
     if not kernels["ok"] or kernels["backend"] != "cpu" or kernels.get("profile") != "linux-python-cpu":
         failures.append("CPU kernel verification of the CUDA-free build did not pass")
@@ -132,9 +142,21 @@ def cpu_checks(run, validation, failures, threads):
             validation["lane_ok"][name] = report["ok"]
             if report["backends"] != ["numpy", "cpu"] or report["build_route"] != "host-cxx-shared-library":
                 failures.append(f"{name}: expected upstream NumPy and native CPU on the CUDA-free build")
-            if sorted(report["affinity"]) != sorted(selection["cpus"]) or report["omp_threads"] != str(n):
-                failures.append(f"{name}: ran on {report['affinity']} with OMP_NUM_THREADS="
+            # The launch mask is the process allocation; OpenMP later binds each
+            # thread to one place, so every live thread mask must lie inside it.
+            threads_used = [cpu_list(mask) for mask in (report.get("thread_affinities") or {}).values()]
+            validation["thread_masks"][name] = {
+                "launch": report.get("launch_affinity"),
+                "main_after_load": report.get("main_thread_affinity_after_load"),
+                "threads": len(threads_used),
+                "cpus_used": sorted(set().union(*threads_used)) if threads_used else None}
+            launched = sorted(report.get("launch_affinity") or [])
+            if launched != sorted(selection["cpus"]) or report["omp_threads"] != str(n):
+                failures.append(f"{name}: launched on {report.get('launch_affinity')} with OMP_NUM_THREADS="
                                 f"{report['omp_threads']}, not the {n}-core selection")
+            if not threads_used or not set().union(*threads_used) <= set(selection["cpus"]):
+                failures.append(f"{name}: thread masks {report.get('thread_affinities')} "
+                                f"are missing or leave the {n}-core selection")
             for case in report["cases"]:
                 if "candidates" not in case:
                     continue  # stored fixture cases: agreement only
