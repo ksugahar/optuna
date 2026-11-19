@@ -2,9 +2,14 @@ name: radia-optuna upstream watch
 
 # Read-only check for a stable official Optuna release newer than the pin in
 # radia-optuna/src/radia_optuna/upstream.json. It writes a report to the job
-# summary and fails the run when an update is found or the check cannot
-# finish, so that the result is visible. It never changes the pin, pushes,
-# opens issues or pull requests, or publishes anything.
+# summary. Watcher exit status -> run result:
+#   0 up_to_date        success
+#   1 update_available  success with a warning annotation
+#   3 pin_tag_missing   failure
+#   4 incomplete        failure
+#   5 error (and any other status)  failure
+# It never changes the pin, pushes, opens issues or pull requests, or
+# publishes anything.
 
 on:
   schedule:
@@ -50,7 +55,7 @@ jobs:
         run: |
           case "$CODE" in
             0) echo "The pin is the latest stable Optuna release." ;;
-            1) echo "::warning title=Upstream Optuna update::A newer stable Optuna release exists; see the job summary."; exit 1 ;;
+            1) echo "::warning title=Upstream Optuna update::A newer stable Optuna release exists; see the job summary." ;;
             3) echo "::error title=Pin tag missing::No official tag matches the pin; see the job summary."; exit 1 ;;
             4) echo "::error title=Incomplete comparison::The changed-file list is incomplete; see the job summary."; exit 1 ;;
             *) echo "::error title=Upstream watch failed::Network, HTTP or format failure (exit $CODE); see the job summary."; exit 1 ;;

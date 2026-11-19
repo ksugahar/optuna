@@ -1,9 +1,12 @@
 """Report whether official Optuna has a stable release newer than the pin.
 
 Read-only. Queries the GitHub REST API of optuna/optuna for tag names, the
-commit SHAs of two tags and the file list of their comparison. It never
-clones, downloads or runs upstream code, and changes nothing in this
-repository.
+commits of two tags and the files that differ between them. When the release
+descends from the pin, the comparison lists the files (with renames). When it
+does not (diverged history), the merge-base comparison would miss changes
+made only on the pinned side, so the file list is the exact difference of the
+two tag trees instead. It never clones, downloads or runs upstream code, and
+changes nothing in this repository.
 
 Usage:
     python tools/upstream_watch.py [--report-md PATH] [--report-json PATH]
@@ -15,8 +18,11 @@ Exit status (each outcome is distinct; none of them means "no update" except 0):
     0  up_to_date        the pin is the latest stable release
     1  update_available  a newer stable release exists; the report lists its changes
     3  pin_tag_missing   no official tag matches the pinned version
-    4  incomplete        the comparison could not list every changed file
+    4  incomplete        the file list is partial or missing; the report says so
     5  error             network, HTTP or response-format failure
+
+The scheduled workflow maps 1 to a warning on a successful run and fails on
+3, 4 and 5 (see .github/workflows/radia-optuna-upstream-watch.yml).
 """
 import argparse
 import json
@@ -109,7 +115,7 @@ def http_get(url, token=None):
 
 
 class GitHub:
-    """The four read-only queries the watcher needs."""
+    """The read-only queries the watcher needs."""
 
     def __init__(self, token=None, get=http_get):
         self.token, self.get = token, get
@@ -126,11 +132,21 @@ class GitHub:
         return names
 
     def commit(self, tag):
+        """Commit and root-tree SHAs of a tag."""
         data, _ = self.get(f"{API}/commits/{urllib.parse.quote(tag)}", self.token)
         sha = data.get("sha") if isinstance(data, dict) else None
-        if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
-            raise WatchError(f"tag {tag} did not resolve to a commit")
-        return sha
+        tree = ((data.get("commit") or {}).get("tree") or {}).get("sha") if isinstance(data, dict) else None
+        if not all(isinstance(v, str) and re.fullmatch(r"[0-9a-f]{40}", v) for v in (sha, tree)):
+            raise WatchError(f"tag {tag} did not resolve to a commit and tree")
+        return {"tag": tag, "sha": sha, "tree": tree}
+
+    def tree(self, sha):
+        """Every non-directory entry of a tree as {path: (mode, object SHA)}, and the truncation flag."""
+        data, _ = self.get(f"{API}/git/trees/{sha}?recursive=1", self.token)
+        if not isinstance(data, dict) or not isinstance(data.get("tree"), list):
+            raise WatchError(f"unexpected tree response for {sha}")
+        entries = {e["path"]: (e["mode"], e["sha"]) for e in data["tree"] if e["type"] != "tree"}
+        return entries, bool(data.get("truncated"))
 
     def compare(self, base, head):
         data, _ = self.get(f"{API}/compare/{base}...{head}", self.token)
@@ -147,6 +163,22 @@ def changes(files):
             row["previous_path"] = item["previous_filename"]
             row["previous_component"] = classify(item["previous_filename"])
         rows.append(row)
+    return rows
+
+
+def tree_delta(old, new):
+    """Exact path difference of two trees. Git trees carry no renames: a move is a removal plus an addition."""
+    rows = []
+    for path in sorted(old.keys() | new.keys()):
+        if path not in new:
+            status = "removed"
+        elif path not in old:
+            status = "added"
+        elif old[path] != new[path]:
+            status = "modified"
+        else:
+            continue
+        rows.append({"filename": path, "status": status})
     return rows
 
 
@@ -167,12 +199,12 @@ def watch(pin, github):
             report.update(status="pin_tag_missing", detail=f"no official tag v{pin} in {UPSTREAM}")
             return report
         latest_version, latest = stable[-1]
-        report["pinned_tag"] = {"tag": f"v{pin}", "sha": github.commit(f"v{pin}")}
+        report["pinned_tag"] = github.commit(f"v{pin}")
         if latest_version <= pinned:
             report["latest_stable_tag"] = report["pinned_tag"]
             report["status"] = "up_to_date"
             return report
-        report["latest_stable_tag"] = {"tag": latest, "sha": github.commit(latest)}
+        report["latest_stable_tag"] = github.commit(latest)
         report["newer_stable_tags"] = [t for v, t in stable if v > pinned]
         base, head = report["pinned_tag"]["sha"], report["latest_stable_tag"]["sha"]
         comparison = github.compare(base, head)
@@ -181,22 +213,34 @@ def watch(pin, github):
             release_url=f"{WEB}/releases/tag/{latest}",
             comparison_status=comparison.get("status"),
             ahead_by=comparison.get("ahead_by"), behind_by=comparison.get("behind_by"))
-        files = comparison.get("files")
-        if not isinstance(files, list):
-            # GitHub omits the list for very large comparisons.
-            report.update(files=[], components={}, review_points=[], status="incomplete",
-                          detail=f"the comparison returned no file list. Review {report['compare_url']} manually.")
-            return report
+        partial = None
+        if comparison.get("status") == "ahead":
+            # The pin is an ancestor: the comparison is the whole pin-to-release change.
+            report["file_source"] = "comparison"
+            files = comparison.get("files")
+            if not isinstance(files, list):
+                files, partial = [], "the comparison returned no file list"  # omitted for very large comparisons
+            elif len(files) >= COMPARE_FILE_LIMIT:
+                partial = f"the comparison lists {len(files)} files, GitHub's limit"
+        else:
+            # Diverged: the merge-base comparison omits pin-only changes. Use the exact tree difference.
+            report["file_source"] = "tree_difference"
+            old, old_cut = github.tree(report["pinned_tag"]["tree"])
+            new, new_cut = github.tree(report["latest_stable_tag"]["tree"])
+            files = tree_delta(old, new)
+            if old_cut or new_cut:
+                partial = "GitHub truncated a recursive tree listing"
         report["files"] = changes(files)
+        report["files_partial"] = partial is not None
         groups = {}
         for row in report["files"]:
             for key in {row["component"], row.get("previous_component", row["component"])}:
                 groups.setdefault(key, []).append(row["path"])
         report["components"] = {key: len(paths) for key, paths in sorted(groups.items())}
         report["review_points"] = [REVIEW[key] for key, _ in COMPONENTS if key in groups and key in REVIEW]
-        if len(files) >= COMPARE_FILE_LIMIT:
-            report.update(status="incomplete", detail=f"the comparison lists {len(files)} files, GitHub's "
-                          f"limit; the full set is unknown. Review {report['compare_url']} manually.")
+        if partial:
+            report.update(status="incomplete", detail=f"{partial}; the changed-file list below is partial and may "
+                          f"miss affected components. Review {report['compare_url']} manually.")
         else:
             report["status"] = "update_available"
         return report
@@ -220,9 +264,11 @@ def markdown(report):
                   f"- Compare: {report['compare_url']}", f"- Release notes: {report['release_url']}",
                   f"- Comparison status: `{report['comparison_status']}` (ahead {report['ahead_by']}, "
                   f"behind {report['behind_by']})"]
-        if report["comparison_status"] != "ahead":
-            lines.append("  The release is not a descendant of the pin; the file list is relative to their merge base.")
-        lines += ["", "## Changed files (observed)", ""]
+        if report["file_source"] == "tree_difference":
+            lines.append("  The release does not descend from the pin. The file list is the exact difference "
+                         "of the two tag trees; a moved file shows as removed plus added.")
+        heading = "partial: not every changed file is listed" if report["files_partial"] else "observed"
+        lines += ["", f"## Changed files ({heading})", ""]
         for key in [c for c, _ in COMPONENTS] + ["other"]:
             rows = [r for r in report["files"] if key in (r["component"], r.get("previous_component"))]
             if not rows:

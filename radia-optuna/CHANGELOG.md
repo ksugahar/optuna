@@ -6,9 +6,12 @@
   `radia-optuna-upstream-watch.yml`): a read-only daily and manual check of
   official Optuna stable tags against the pin. It reports the pinned and latest
   tag/SHA pairs and the changed paths grouped by TPE, pruners, storage and other
-  APIs, with inferred review points and compare links. No update, update
-  available, missing pin tag, incomplete comparison and network failure each
-  have their own exit status. It never changes the pin or publishes anything.
+  APIs, with inferred review points and compare links. When the release does
+  not descend from the pin, the file list is the exact difference of the two
+  tag trees. No update, update available, missing pin tag, incomplete
+  comparison and network failure each have their own exit status. The
+  workflow warns on an update and fails on the other problems. It never
+  changes the pin or publishes anything.
 
 ## 5.1.0.3 (2026-11-19)
 
