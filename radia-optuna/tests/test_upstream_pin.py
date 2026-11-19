@@ -101,7 +101,7 @@ def test_no_active_upstream_optuna_pin_literals():
     ).strip())
     if git_root == ROOT.parent and ROOT.name == "radia-optuna":
         files.extend(f"../.github/workflows/{name}" for name in (
-            "radia-optuna.yml", "release-radia-optuna.yml"
+            "radia-optuna.yml", "release-radia-optuna.yml", "radia-optuna-upstream-watch.yml"
         ))
     allow = FROZEN | {PIN_PATH, "pyproject.toml", "src/radia_optuna/manifest.json"}
     violations = []
