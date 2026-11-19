@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 5.1.0.3 (2026-11-19)
 
 - Flow2 Linux Python GPU route (`tools/flow2/`): staged exact source and
   hash-pinned wheels, two independent PBS builds, and installed-wheel GPU checks
